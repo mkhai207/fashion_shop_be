@@ -34,9 +34,9 @@ module.exports = {
         type: Sequelize.BIGINT,
         references: { model: "orders", key: "id" },
       },
-      product_id: {
-        type: Sequelize.STRING(255),
-        references: { model: "products", key: "id" },
+      product_variant_id: {
+        type: Sequelize.BIGINT,
+        references: { model: "product_variants", key: "id" },
       },
     });
   },

@@ -21,4 +21,15 @@ const Supplies = sequelize.define(
   }
 );
 
+Supplies.associate = (models) => {
+  Supplies.belongsTo(models.Supplier, {
+    foreignKey: "supplier_id",
+    as: "supplier",
+  });
+  Supplies.belongsTo(models.Product, {
+    foreignKey: "product_id",
+    as: "product",
+  });
+};
+
 module.exports = Supplies;

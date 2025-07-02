@@ -46,8 +46,8 @@ const Review = sequelize.define(
 );
 
 Review.associate = (models) => {
-  Review.belongsTo(models.User, { foreignKey: "user_id" });
-  Review.belongsTo(models.Product, { foreignKey: "product_id" });
+  Review.belongsTo(models.User, { foreignKey: "user_id", as: "user" });
+  Review.belongsTo(models.Product, { foreignKey: "product_id", as: "product" });
 };
 
 module.exports = Review;

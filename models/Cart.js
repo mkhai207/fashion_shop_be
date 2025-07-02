@@ -27,9 +27,9 @@ const Cart = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    product_id: {
-      type: DataTypes.STRING(255),
-      references: { model: "Products", key: "id" },
+    product_variant_id: {
+      type: DataTypes.BIGINT,
+      references: { model: "ProductVariants", key: "id" },
     },
     user_id: {
       type: DataTypes.BIGINT,
@@ -43,8 +43,11 @@ const Cart = sequelize.define(
 );
 
 Cart.associate = (models) => {
-  Cart.belongsTo(models.User, { foreignKey: "user_id" });
-  Cart.belongsTo(models.Product, { foreignKey: "product_id" });
+  Cart.belongsTo(models.User, { foreignKey: "user_id", as: "user" });
+  Cart.belongsTo(models.ProductVariant, {
+    foreignKey: "product_variant_id",
+    as: "variant",
+  });
 };
 
 module.exports = Cart;

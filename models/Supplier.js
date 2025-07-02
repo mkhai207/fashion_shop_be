@@ -47,6 +47,7 @@ Supplier.associate = (models) => {
   Supplier.belongsToMany(models.Product, {
     through: models.Supplies,
     foreignKey: "supplier_id",
+    as: "products",
   });
 };
 

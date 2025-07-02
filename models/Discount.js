@@ -25,8 +25,8 @@ const Discount = sequelize.define(
     },
     code: {
       type: DataTypes.STRING(50),
-      allowNull: false,
       unique: true,
+      allowNull: false,
     },
     percentage: {
       type: DataTypes.FLOAT,
@@ -44,7 +44,7 @@ const Discount = sequelize.define(
 );
 
 Discount.associate = (models) => {
-  Discount.hasMany(models.Order, { foreignKey: "discount_id" });
+  Discount.hasMany(models.Order, { foreignKey: "discount_id", as: "orders" });
 };
 
 module.exports = Discount;

@@ -35,9 +35,9 @@ const OrderDetail = sequelize.define(
       type: DataTypes.BIGINT,
       references: { model: "Orders", key: "id" },
     },
-    product_id: {
-      type: DataTypes.STRING(255),
-      references: { model: "Products", key: "id" },
+    product_variant_id: {
+      type: DataTypes.BIGINT,
+      references: { model: "ProductVariants", key: "id" },
     },
   },
   {
@@ -47,8 +47,11 @@ const OrderDetail = sequelize.define(
 );
 
 OrderDetail.associate = (models) => {
-  OrderDetail.belongsTo(models.Order, { foreignKey: "order_id" });
-  OrderDetail.belongsTo(models.Product, { foreignKey: "product_id" });
+  OrderDetail.belongsTo(models.Order, { foreignKey: "order_id", as: "order" });
+  OrderDetail.belongsTo(models.ProductVariant, {
+    foreignKey: "product_variant_id",
+    as: "variant",
+  });
 };
 
 module.exports = OrderDetail;

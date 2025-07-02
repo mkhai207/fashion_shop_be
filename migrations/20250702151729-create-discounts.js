@@ -2,7 +2,7 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable("carts", {
+    await queryInterface.createTable("discounts", {
       id: {
         type: Sequelize.BIGINT,
         primaryKey: true,
@@ -22,22 +22,23 @@ module.exports = {
       updated_by: {
         type: Sequelize.STRING(255),
       },
-      quantity: {
-        type: Sequelize.INTEGER,
+      code: {
+        type: Sequelize.STRING(50),
+        unique: true,
         allowNull: false,
       },
-      product_id: {
-        type: Sequelize.STRING(255),
-        references: { model: "products", key: "id" },
+      percentage: {
+        type: Sequelize.FLOAT,
+        allowNull: false,
       },
-      user_id: {
-        type: Sequelize.BIGINT,
-        references: { model: "users", key: "id" },
+      valid_until: {
+        type: Sequelize.DATE,
+        allowNull: false,
       },
     });
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable("carts");
+    await queryInterface.dropTable("discounts");
   },
 };

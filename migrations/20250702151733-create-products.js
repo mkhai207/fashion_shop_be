@@ -36,19 +36,6 @@ module.exports = {
         type: Sequelize.ENUM("MALE", "FEMALE", "UNISEX"),
         allowNull: false,
       },
-      color: {
-        type: Sequelize.STRING(255),
-        allowNull: false,
-      },
-      size: {
-        type: Sequelize.ENUM("S", "M", "L", "XL", "XXL"),
-        allowNull: false,
-      },
-      quantity: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        defaultValue: 0,
-      },
       sold: {
         type: Sequelize.INTEGER,
         defaultValue: 0,

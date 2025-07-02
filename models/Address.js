@@ -60,8 +60,8 @@ const Address = sequelize.define(
 );
 
 Address.associate = (models) => {
-  Address.belongsTo(models.User, { foreignKey: "user_id" });
-  Address.hasMany(models.Order, { foreignKey: "address_id" });
+  Address.belongsTo(models.User, { foreignKey: "user_id", as: "user" });
+  Address.hasMany(models.Order, { foreignKey: "address_id", as: "orders" });
 };
 
 module.exports = Address;

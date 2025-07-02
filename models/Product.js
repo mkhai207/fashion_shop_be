@@ -37,19 +37,6 @@ const Product = sequelize.define(
       type: DataTypes.ENUM("MALE", "FEMALE", "UNISEX"),
       allowNull: false,
     },
-    color: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-    },
-    size: {
-      type: DataTypes.ENUM("S", "M", "L", "XL", "XXL"),
-      allowNull: false,
-    },
-    quantity: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
-    },
     sold: {
       type: DataTypes.INTEGER,
       defaultValue: 0,
@@ -79,14 +66,20 @@ const Product = sequelize.define(
 );
 
 Product.associate = (models) => {
-  Product.belongsTo(models.Category, { foreignKey: "category_id" });
-  Product.belongsTo(models.Brand, { foreignKey: "brand_id" });
-  Product.hasMany(models.Cart, { foreignKey: "product_id" });
-  Product.hasMany(models.OrderDetail, { foreignKey: "product_id" });
-  Product.hasMany(models.Review, { foreignKey: "product_id" });
+  Product.belongsTo(models.Category, {
+    foreignKey: "category_id",
+    as: "category",
+  });
+  Product.belongsTo(models.Brand, { foreignKey: "brand_id", as: "brand" });
+  Product.hasMany(models.ProductVariant, {
+    foreignKey: "product_id",
+    as: "variants",
+  });
+  Product.hasMany(models.Review, { foreignKey: "product_id", as: "reviews" });
   Product.belongsToMany(models.Supplier, {
     through: models.Supplies,
     foreignKey: "product_id",
+    as: "suppliers",
   });
 };
 

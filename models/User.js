@@ -64,11 +64,11 @@ const User = sequelize.define(
 );
 
 User.associate = (models) => {
-  User.hasMany(models.Address, { foreignKey: "user_id" });
-  User.hasMany(models.Cart, { foreignKey: "user_id" });
-  User.hasMany(models.Order, { foreignKey: "user_id" });
-  User.hasMany(models.Review, { foreignKey: "user_id" });
-  User.belongsTo(models.Role, { foreignKey: "role_id" });
+  User.belongsTo(models.Role, { foreignKey: "role_id", as: "role" });
+  User.hasMany(models.Address, { foreignKey: "user_id", as: "addresses" });
+  User.hasMany(models.Cart, { foreignKey: "user_id", as: "carts" });
+  User.hasMany(models.Order, { foreignKey: "user_id", as: "orders" });
+  User.hasMany(models.Review, { foreignKey: "user_id", as: "reviews" });
 };
 
 module.exports = User;
