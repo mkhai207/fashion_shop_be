@@ -55,4 +55,30 @@ const registerValidator = validate(
   })
 );
 
-module.exports = registerValidator;
+const loginValidator = validate(
+  checkSchema({
+    email: {
+      notEmpty: {
+        errorMessage: "Email không được để trống",
+      },
+      isEmail: {
+        errorMessage: "Email không hợp lệ",
+      },
+      normalizeEmail: true,
+    },
+    password: {
+      notEmpty: {
+        errorMessage: "Mật khẩu không được để trống",
+      },
+      isLength: {
+        options: { min: 6 },
+        errorMessage: "Mật khẩu phải có ít nhất 6 ký tự",
+      },
+    },
+  })
+);
+
+module.exports = {
+  registerValidator,
+  loginValidator,
+};
