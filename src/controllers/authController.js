@@ -59,9 +59,25 @@ const getMe = async (req, res) => {
   }
 };
 
+const refresh = async (req, res) => {
+  try {
+    const refreshToken = req.body.refreshToken;
+    const refreshResponse = await authService.refresh(refreshToken);
+    return res.status(200).json(refreshResponse);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message,
+      error: error.error,
+      data: null,
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   logout,
   getMe,
+  refresh,
 };

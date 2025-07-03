@@ -1,7 +1,11 @@
 const { sign } = require("jsonwebtoken");
 const User = require("../../models/User");
 const { hashPassword } = require("../utils/crypto");
-const { signAccessToken, signRefreshToken } = require("./jwtService");
+const {
+  signAccessToken,
+  signRefreshToken,
+  verifyToken,
+} = require("./jwtService");
 const { check } = require("express-validator");
 
 const register = (newUser) => {
@@ -210,9 +214,50 @@ const getMe = (userId) => {
   });
 };
 
+const refresh = (refreshToken) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const decoded = await verifyToken(refreshToken);
+
+      const user = await User.findOne({ where: { id: decoded.id } });
+      if (!user || user.refresh_token !== refreshToken) {
+        return reject({
+          statusCode: 401,
+          message: "Invalid refresh token",
+          error: "The provided refresh token is invalid or expired",
+          data: null,
+        });
+      }
+
+      const newAccessToken = await signAccessToken({
+        id: user.id,
+        role: user.role_id,
+      });
+
+      return resolve({
+        status: "success",
+        message: "Refresh token successfully",
+        error: null,
+        data: {
+          accessToken: newAccessToken,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      reject({
+        status: "error",
+        message: "Refresh fail",
+        error: error.message,
+        data: null,
+      });
+    }
+  });
+};
+
 module.exports = {
   register,
   login,
   logout,
   getMe,
+  refresh,
 };

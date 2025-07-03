@@ -78,7 +78,21 @@ const loginValidator = validate(
   })
 );
 
+const refreshValidator = validate(
+  checkSchema({
+    refreshToken: {
+      notEmpty: {
+        errorMessage: "Refresh token không được để trống",
+      },
+      isString: {
+        errorMessage: "Refresh token phải là một chuỗi",
+      },
+    },
+  })
+);
+
 module.exports = {
   registerValidator,
   loginValidator,
+  refreshValidator,
 };
