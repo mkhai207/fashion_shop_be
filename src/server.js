@@ -4,12 +4,13 @@ const swaggerUi = require("swagger-ui-express");
 const yaml = require("yamljs");
 const path = require("path");
 const sequelize = require("../config/database");
-// const routes = require("../routes");
+const routes = require("./routes/index");
 
 const app = express();
 
 // Middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Swagger
 const swaggerDocument = yaml.load(
@@ -17,8 +18,8 @@ const swaggerDocument = yaml.load(
 );
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-// Routes
-// app.use("/api/v1", routes);
+//Routes;
+routes(app);
 
 // Error handling
 app.use((err, req, res, next) => {
