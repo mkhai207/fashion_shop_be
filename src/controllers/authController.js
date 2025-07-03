@@ -28,7 +28,40 @@ const login = async (req, res) => {
   }
 };
 
+const logout = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log(">> userId: ", userId);
+    const logoutResponse = await authService.logout(userId);
+    return res.status(200).json(logoutResponse);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message,
+      error: error.error,
+      data: null,
+    });
+  }
+};
+
+const getMe = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const getMeResponse = await authService.getMe(userId);
+    return res.status(200).json(getMeResponse);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message,
+      error: error.error,
+      data: null,
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
+  logout,
+  getMe,
 };

@@ -7,12 +7,29 @@ const signToken = ({ payload, privateKey, options }) => {
     jwt.sign(
       payload,
       privateKey || process.env.JWT_SECRET,
-      options || { algorithm: "RS256" },
+      options || { algorithm: "HS256" },
       (err, token) => {
         if (err) {
           reject(err);
         } else {
           resolve(token);
+        }
+      }
+    );
+  });
+};
+
+const verifyToken = (token, publicKey) => {
+  return new Promise((resolve, reject) => {
+    jwt.verify(
+      token,
+      publicKey || process.env.JWT_SECRET,
+      { algorithms: ["HS256"] },
+      (err, decoded) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(decoded);
         }
       }
     );
@@ -39,6 +56,7 @@ const signRefreshToken = (payload) => {
 
 module.exports = {
   signToken,
+  verifyToken,
   signAccessToken,
   signRefreshToken,
 };
