@@ -60,10 +60,10 @@ const login = (user) => {
     try {
       const checkUser = await User.findOne({ where: { email } });
 
-      if (checkUser === null) {
+      if (checkUser === null || checkUser.active === false) {
         reject({
           statusCode: 400,
-          message: "User not found",
+          message: "User not found or unactive",
           error: "The provided email does not exist",
           data: null,
         });

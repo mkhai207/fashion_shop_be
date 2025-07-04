@@ -5,48 +5,48 @@ const registerValidator = validate(
   checkSchema({
     fullName: {
       notEmpty: {
-        errorMessage: "Họ tên không được để trống",
+        errorMessage: "Full name cannot be empty",
       },
       isLength: {
-        options: { min: 3 },
-        errorMessage: "Họ tên phải có ít nhất 3 ký tự",
+        options: { min: 6 },
+        errorMessage: "Full name must be at least 6 characters long",
       },
     },
     phone: {
       notEmpty: {
-        errorMessage: "Số điện thoại không được để trống",
+        errorMessage: "Phone number cannot be empty",
       },
       isMobilePhone: {
         options: ["vi-VN"],
-        errorMessage: "Số điện thoại không hợp lệ",
+        errorMessage: "Invalid phone number",
       },
     },
     email: {
       notEmpty: {
-        errorMessage: "Email không được để trống",
+        errorMessage: "Email cannot be empty",
       },
       isEmail: {
-        errorMessage: "Email không hợp lệ",
+        errorMessage: "Invalid email address",
       },
       normalizeEmail: true,
     },
     password: {
       notEmpty: {
-        errorMessage: "Mật khẩu không được để trống",
+        errorMessage: "Password cannot be empty",
       },
       isLength: {
         options: { min: 6 },
-        errorMessage: "Mật khẩu phải có ít nhất 6 ký tự",
+        errorMessage: "Password must be at least 6 characters long",
       },
     },
     confirmPassword: {
       notEmpty: {
-        errorMessage: "Xác nhận mật khẩu không được để trống",
+        errorMessage: "Confirm password cannot be empty",
       },
       custom: {
         options: (value, { req }) => {
           if (value !== req.body.password) {
-            throw new Error("Mật khẩu xác nhận không khớp");
+            throw new Error("Confirm password does not match");
           }
           return true;
         },
@@ -59,20 +59,20 @@ const loginValidator = validate(
   checkSchema({
     email: {
       notEmpty: {
-        errorMessage: "Email không được để trống",
+        errorMessage: "Email cannot be empty",
       },
       isEmail: {
-        errorMessage: "Email không hợp lệ",
+        errorMessage: "Invalid email address",
       },
       normalizeEmail: true,
     },
     password: {
       notEmpty: {
-        errorMessage: "Mật khẩu không được để trống",
+        errorMessage: "Password cannot be empty",
       },
       isLength: {
         options: { min: 6 },
-        errorMessage: "Mật khẩu phải có ít nhất 6 ký tự",
+        errorMessage: "Password must be at least 6 characters long",
       },
     },
   })
@@ -82,10 +82,10 @@ const refreshValidator = validate(
   checkSchema({
     refreshToken: {
       notEmpty: {
-        errorMessage: "Refresh token không được để trống",
+        errorMessage: "Refresh token cannot be empty",
       },
       isString: {
-        errorMessage: "Refresh token phải là một chuỗi",
+        errorMessage: "Refresh token must be a string",
       },
     },
   })
