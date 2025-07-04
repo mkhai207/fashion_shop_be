@@ -1,12 +1,12 @@
 const { sign } = require("jsonwebtoken");
-const User = require("../../models/User");
+const db = require("../../models");
+const User = db.User;
 const { hashPassword } = require("../utils/crypto");
 const {
   signAccessToken,
   signRefreshToken,
   verifyToken,
 } = require("./jwtService");
-const { check } = require("express-validator");
 
 const register = (newUser) => {
   return new Promise(async (resolve, reject) => {
