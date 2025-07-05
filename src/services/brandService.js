@@ -117,7 +117,7 @@ const updateBrand = (currentUser, brandId, brandData) => {
       }
 
       const updateData = {
-        name: brandData.name !== undefined ? brandData.name : brandData.name,
+        name: brandData.name !== undefined ? brandData.name : brand.name,
         updated_by: currentUser.id,
         updated_at: new Date(),
       };

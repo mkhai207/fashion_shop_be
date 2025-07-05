@@ -14,18 +14,36 @@ const buildQuery = async (
 ) => {
   try {
     const where = {};
+    const operatorMap = {
+      gt: Op.gt,
+      gte: Op.gte,
+      lt: Op.lt,
+      lte: Op.lte,
+      eq: Op.eq,
+      ne: Op.ne,
+      like: Op.iLike,
+    };
+
     for (const key of allowedFilters) {
       if (query[key] !== undefined) {
-        const value = query[key];
-        if (
-          typeof value === "string" &&
-          (key.includes("name") || key === "email")
-        ) {
-          where[key] = { [Op.iLike]: `%${value}%` };
-        } else if (key === "active") {
-          where[key] = value === "true";
-        } else {
-          where[key] = value;
+        const rawValues = Array.isArray(query[key]) ? query[key] : [query[key]];
+
+        for (const raw of rawValues) {
+          if (typeof raw === "string" && raw.includes(":")) {
+            const [op, val] = raw.split(":");
+            const sequelizeOp = operatorMap[op];
+            if (!sequelizeOp) {
+              throw new Error(`Unsupported operator '${op}' for '${key}'`);
+            }
+
+            const value =
+              op === "like" ? `%${val}%` : isNaN(val) ? val : Number(val);
+            if (!where[key]) where[key] = {};
+            where[key][sequelizeOp] = value;
+          } else {
+            // fallback nếu không có toán tử
+            where[key] = isNaN(raw) ? raw : Number(raw);
+          }
         }
       }
     }
