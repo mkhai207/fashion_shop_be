@@ -1,5 +1,4 @@
 const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
 
 module.exports = (sequelize, DataTypes) => {
   const ProductVariant = sequelize.define(
@@ -26,15 +25,18 @@ module.exports = (sequelize, DataTypes) => {
       },
       product_id: {
         type: DataTypes.STRING(255),
+        allowNull: false,
         references: { model: "Products", key: "id" },
       },
-      size: {
-        type: DataTypes.ENUM("S", "M", "L", "XL", "XXL"),
+      size_id: {
+        type: DataTypes.BIGINT,
         allowNull: false,
+        references: { model: "Sizes", key: "id" },
       },
-      color: {
-        type: DataTypes.STRING(255),
+      color_id: {
+        type: DataTypes.BIGINT,
         allowNull: false,
+        references: { model: "Colors", key: "id" },
       },
       quantity: {
         type: DataTypes.INTEGER,
@@ -48,7 +50,7 @@ module.exports = (sequelize, DataTypes) => {
       indexes: [
         {
           unique: true,
-          fields: ["product_id", "size", "color"],
+          fields: ["product_id", "size_id", "color_id"],
           name: "uniq_product_variant",
         },
       ],
@@ -60,6 +62,14 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: "product_id",
       as: "product",
     });
+    ProductVariant.belongsTo(models.Size, {
+      foreignKey: "size_id",
+      as: "size",
+    });
+    ProductVariant.belongsTo(models.Color, {
+      foreignKey: "color_id",
+      as: "color",
+    });
     ProductVariant.hasMany(models.Cart, {
       foreignKey: "product_variant_id",
       as: "carts",
@@ -69,5 +79,6 @@ module.exports = (sequelize, DataTypes) => {
       as: "orderDetails",
     });
   };
+
   return ProductVariant;
 };
