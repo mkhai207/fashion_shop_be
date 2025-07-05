@@ -88,4 +88,4 @@ const buildQuery = async (
   }
 };
 
-module.exports = { buildQuery };
+module.exports = buildQuery;

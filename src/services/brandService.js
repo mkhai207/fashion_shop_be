@@ -1,32 +1,31 @@
 const db = require("../../models");
 const buildQuery = require("../utils/queryBuilder");
-const Category = db.Category;
+const Brand = db.Brand;
 const Product = db.Product;
 
-const createCategory = (currentUser, categoryData) => {
+const createBrand = (currentUser, brandData) => {
   return new Promise(async (resolve, reject) => {
     try {
       if (Number(currentUser.role) !== 1) {
         return reject({
           statusCode: 403,
           message: "Forbidden",
-          error: "You do not have permission to create new category",
+          error: "You do not have permission to create new brand",
           data: null,
         });
       }
 
-      const newCategory = await Category.create({
-        name: categoryData.name,
-        code: categoryData.code || null,
+      const newBrand = await Brand.create({
+        name: brandData.name,
         created_by: currentUser?.id || null,
         created_at: new Date(),
       });
 
       return resolve({
         status: "success",
-        message: "Create category successfully",
+        message: "Create brand successfully",
         error: null,
-        data: newCategory,
+        data: newBrand,
       });
     } catch (error) {
       console.log(error);
@@ -40,22 +39,21 @@ const createCategory = (currentUser, categoryData) => {
   });
 };
 
-const getAllCategories = (query) => {
+const getAllBrand = (query) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const result = await buildQuery(Category, query, {
+      const result = await buildQuery(Brand, query, {
         attributes: [
           "id",
           "created_at",
           "created_by",
           "updated_at",
           "updated_by",
-          "code",
           "name",
         ],
-        allowedFilters: ["name", "code"],
-        allowedSorts: ["id", "created_at", "updated_at", "name", "code"],
-        defaultSort: [["created_at", "DESC"]],
+        allowedFilters: ["name"],
+        allowedSorts: ["id", "created_at", "updated_at", "name"],
+        defaultSort: [["id", "DESC"]],
         defaultLimit: 20,
       });
 
@@ -64,7 +62,7 @@ const getAllCategories = (query) => {
       console.log(error);
       reject({
         status: "error",
-        message: "Get categories fail",
+        message: "Get brands fail",
         error: error.message,
         data: null,
       });
@@ -72,22 +70,22 @@ const getAllCategories = (query) => {
   });
 };
 
-const getCategoryById = (categoryId) => {
+const getBrandById = (brandId) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const category = await Category.findOne({ where: { id: categoryId } });
+      const brand = await Brand.findOne({ where: { id: brandId } });
 
       return resolve({
         status: "success",
-        message: "Get category successfully",
+        message: "Get brand successfully",
         error: null,
-        data: category,
+        data: brand,
       });
     } catch (error) {
       console.log(error);
       reject({
         status: "error",
-        message: "Get category fail",
+        message: "Get brand fail",
         error: error.message,
         data: null,
       });
@@ -95,51 +93,48 @@ const getCategoryById = (categoryId) => {
   });
 };
 
-const updateCategory = (currentUser, categoryId, categoryData) => {
+const updateBrand = (currentUser, brandId, brandData) => {
   return new Promise(async (resolve, reject) => {
     try {
       if (Number(currentUser.role) !== 1) {
         return reject({
           statusCode: 403,
           message: "Forbidden",
-          error: "You do not have permission to update category",
+          error: "You do not have permission to update brand",
           data: null,
         });
       }
 
-      const category = await Category.findOne({ where: { id: categoryId } });
+      const brand = await Brand.findOne({ where: { id: brandId } });
 
-      if (!category) {
+      if (!brand) {
         return reject({
           statusCode: 404,
-          message: "Category not found",
-          error: "No category found with the provided ID",
+          message: "Brand not found",
+          error: "No brand found with the provided ID",
           data: null,
         });
       }
 
       const updateData = {
-        code:
-          categoryData.code !== undefined ? categoryData.code : category.code,
-        name:
-          categoryData.name !== undefined ? categoryData.name : category.name,
+        name: brandData.name !== undefined ? brandData.name : brandData.name,
         updated_by: currentUser.id,
         updated_at: new Date(),
       };
 
-      const updatedCategory = await category.update(updateData);
+      const updatedBrand = await brand.update(updateData);
 
       return resolve({
         status: "success",
-        message: "Update category successfully",
+        message: "Update brand successfully",
         error: null,
-        data: updatedCategory,
+        data: updatedBrand,
       });
     } catch (error) {
       console.log(error);
       reject({
         status: "error",
-        message: "Update category fail",
+        message: "Update brand fail",
         error: error.message,
         data: null,
       });
@@ -147,46 +142,46 @@ const updateCategory = (currentUser, categoryId, categoryData) => {
   });
 };
 
-const deleteCategory = (currentUser, categoryId) => {
+const deleteBrand = (currentUser, brandId) => {
   return new Promise(async (resolve, reject) => {
     try {
       if (Number(currentUser.role) !== 1) {
         return reject({
           statusCode: 403,
           message: "Forbidden",
-          error: "You do not have permission to delete category",
+          error: "You do not have permission to delete brand",
           data: null,
         });
       }
 
-      const category = await Category.findOne({ where: { id: categoryId } });
+      const brand = await Brand.findOne({ where: { id: brandId } });
 
-      if (!category) {
+      if (!brand) {
         return reject({
           statusCode: 404,
-          message: "Category not found",
-          error: "No category found with the provided ID",
+          message: "Brand not found",
+          error: "No brand found with the provided ID",
           data: null,
         });
       }
 
       const productCount = await Product.count({
-        where: { id: categoryId },
+        where: { id: brandId },
       });
       if (productCount > 0) {
         return reject({
           statusCode: 400,
-          message: "Cannot delete category",
-          error: "Category is associated with one or more products",
+          message: "Cannot delete brand",
+          error: "Brand is associated with one or more products",
           data: null,
         });
       }
 
-      await category.destroy();
+      await brand.destroy();
 
       return resolve({
         status: "success",
-        message: "Delete category successfully",
+        message: "Delete brand successfully",
         error: null,
         data: null,
       });
@@ -194,7 +189,7 @@ const deleteCategory = (currentUser, categoryId) => {
       console.log(error);
       reject({
         status: "error",
-        message: "Delete category fail",
+        message: "Delete brand fail",
         error: error.message,
         data: null,
       });
@@ -203,9 +198,9 @@ const deleteCategory = (currentUser, categoryId) => {
 };
 
 module.exports = {
-  getAllCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-  getCategoryById,
+  createBrand,
+  getAllBrand,
+  getBrandById,
+  updateBrand,
+  deleteBrand,
 };

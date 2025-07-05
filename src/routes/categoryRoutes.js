@@ -11,6 +11,7 @@ categoryRouter.post(
   categoryController.createCategory
 );
 categoryRouter.get("/get-categories", categoryController.getAllCategories);
+categoryRouter.get("/get-category/:id", categoryController.getCategoryById);
 categoryRouter.put(
   "/update/:id",
   authMiddleware,

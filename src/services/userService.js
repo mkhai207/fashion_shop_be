@@ -1,8 +1,72 @@
 const db = require("../../models");
+const buildQuery = require("../utils/queryBuilder");
 const User = db.User;
 const Role = db.Role;
 
-const getAllUsers = (userRole) => {
+// const getAllUsers = (userRole) => {
+//   return new Promise(async (resolve, reject) => {
+//     try {
+//       if (Number(userRole) !== 1) {
+//         return reject({
+//           statusCode: 403,
+//           message: "Unauthorized",
+//           error: "UNAUTHORIZED",
+//           data: null,
+//         });
+//       }
+
+//       const users = await User.findAll({
+//         attributes: [
+//           "id",
+//           "created_at",
+//           "created_by",
+//           "updated_at",
+//           "updated_by",
+//           "active",
+//           "avatar",
+//           "birthday",
+//           "email",
+//           "full_name",
+//           "gender",
+//           "phone",
+//         ],
+//         include: [
+//           { model: Role, as: "role", attributes: ["id", "code", "name"] },
+//         ],
+//       });
+
+//       return resolve({
+//         status: "success",
+//         message: "Get users successfully",
+//         error: null,
+//         data: users.map((user) => ({
+//           id: user.id,
+//           created_at: user.created_at,
+//           created_by: user.created_by,
+//           updated_at: user.updated_at,
+//           updated_by: user.updated_by,
+//           avatar: user.avatar,
+//           birthday: user.birthday,
+//           email: user.email,
+//           full_name: user.full_name,
+//           gender: user.gender,
+//           phone: user.phone,
+//           active: user.active,
+//           role: user.role,
+//         })),
+//       });
+//     } catch (error) {
+//       console.log(error);
+//       reject({
+//         status: "error",
+//         message: "Get users fail",
+//         error: error.message,
+//         data: null,
+//       });
+//     }
+//   });
+// };
+const getAllUsers = (userRole, query) => {
   return new Promise(async (resolve, reject) => {
     try {
       if (Number(userRole) !== 1) {
@@ -14,7 +78,7 @@ const getAllUsers = (userRole) => {
         });
       }
 
-      const users = await User.findAll({
+      const result = await buildQuery(User, query, {
         attributes: [
           "id",
           "created_at",
@@ -29,31 +93,20 @@ const getAllUsers = (userRole) => {
           "gender",
           "phone",
         ],
+        allowedFilters: ["email", "full_name", "active", "gender"],
+        allowedSorts: ["id", "email", "full_name", "created_at"],
+        defaultSort: [["id", "DESC"]],
+        defaultLimit: 20,
         include: [
-          { model: Role, as: "role", attributes: ["id", "code", "name"] },
+          {
+            model: Role,
+            as: "role",
+            attributes: ["id", "code", "name"],
+          },
         ],
       });
 
-      return resolve({
-        status: "success",
-        message: "Get users successfully",
-        error: null,
-        data: users.map((user) => ({
-          id: user.id,
-          created_at: user.created_at,
-          created_by: user.created_by,
-          updated_at: user.updated_at,
-          updated_by: user.updated_by,
-          avatar: user.avatar,
-          birthday: user.birthday,
-          email: user.email,
-          full_name: user.full_name,
-          gender: user.gender,
-          phone: user.phone,
-          active: user.active,
-          role: user.role,
-        })),
-      });
+      resolve(result);
     } catch (error) {
       console.log(error);
       reject({

@@ -2,7 +2,10 @@ const userService = require("../services/userService");
 
 const getAllUsers = async (req, res) => {
   try {
-    const getAllUsersResponse = await userService.getAllUsers(req.user.role);
+    const getAllUsersResponse = await userService.getAllUsers(
+      req.user.role,
+      req.query
+    );
     return res.status(200).json(getAllUsersResponse);
   } catch (error) {
     return res.status(error.statusCode || 500).json({
