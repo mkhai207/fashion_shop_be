@@ -37,6 +37,15 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATE,
         allowNull: false,
       },
+      minimum_order_value: {
+        type: DataTypes.DOUBLE,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      max_discount_amount: {
+        type: DataTypes.DOUBLE,
+        allowNull: true,
+      },
     },
     {
       tableName: "discounts",

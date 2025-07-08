@@ -7,6 +7,7 @@ const sizeRouter = require("./sizeRoutes");
 const colorRouter = require("./colorRoutes");
 const productVariantRouter = require("./productVariantRoutes");
 const cartRouter = require("./cartRoutes");
+const orderRouter = require("./orderRoutes");
 
 const routes = (app) => {
   app.use("/api/v0/auth", authRouter);
@@ -18,6 +19,7 @@ const routes = (app) => {
   app.use("/api/v0/colors", colorRouter);
   app.use("/api/v0/variants", productVariantRouter);
   app.use("/api/v0/carts", cartRouter);
+  app.use("/api/v0/orders", orderRouter);
 };
 
 module.exports = routes;

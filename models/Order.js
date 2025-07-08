@@ -50,10 +50,6 @@ module.exports = (sequelize, DataTypes) => {
       total_money: {
         type: DataTypes.DOUBLE,
       },
-      amount_paid: {
-        type: DataTypes.DOUBLE,
-        defaultValue: 0,
-      },
       discount_id: {
         type: DataTypes.BIGINT,
         references: { model: "Discounts", key: "id" },
@@ -61,10 +57,6 @@ module.exports = (sequelize, DataTypes) => {
       user_id: {
         type: DataTypes.BIGINT,
         references: { model: "Users", key: "id" },
-      },
-      address_id: {
-        type: DataTypes.BIGINT,
-        references: { model: "Addresses", key: "id" },
       },
     },
     {
@@ -75,10 +67,6 @@ module.exports = (sequelize, DataTypes) => {
 
   Order.associate = (models) => {
     Order.belongsTo(models.User, { foreignKey: "user_id", as: "user" });
-    Order.belongsTo(models.Address, {
-      foreignKey: "address_id",
-      as: "address",
-    });
     Order.belongsTo(models.Discount, {
       foreignKey: "discount_id",
       as: "discount",
