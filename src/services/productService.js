@@ -151,7 +151,7 @@ const getProductById = (productId) => {
 const updateProduct = (currentUser, productId, productData) => {
   return new Promise(async (resolve, reject) => {
     try {
-      if (Number(currentUser.role) !== 1) {
+      if (Number(currentUser.role) !== 1 || Number(currentUser.role) !== 2) {
         return reject({
           statusCode: 403,
           message: "Forbidden",

@@ -1,7 +1,7 @@
 const { checkSchema } = require("express-validator");
 const validate = require("../utils/validation");
 const db = require("../../models");
-const Cart = db.Cart;
+const Order = db.Order;
 const ProductVariant = db.ProductVariant;
 const Discount = db.Discount;
 const User = db.User;
@@ -13,8 +13,8 @@ const createOrderValidator = validate(
       custom: {
         options: async (value, { req }) => {
           if (!value || !value.id) return true;
-          if (Number(req.user.role) !== 1)
-            throw new Error("Only admin can specify user");
+          if (Number(req.user.role) !== 1 || Number(req.user.role) !== 2)
+            throw new Error("Only admin or staff can specify user");
           const user = await User.findByPk(value.id);
           if (!user) throw new Error("User not found");
           return true;
@@ -96,8 +96,8 @@ const createOrderValidator = validate(
       custom: {
         options: async (value, { req }) => {
           if (!value || value === "") return true;
-          if (Number(req.user.role) !== 1) {
-            throw new Error("Only admin can specify status");
+          if (Number(req.user.role) !== 1 || Number(req.user.role) !== 2) {
+            throw new Error("Only admin or staff can specify status");
           }
           if (
             ![
@@ -118,33 +118,46 @@ const createOrderValidator = validate(
   })
 );
 
-const deleteMultipleCartItemsValidator = validate(
+const updateOrderStatusValidator = validate(
   checkSchema({
-    cartIds: {
-      in: ["body"],
-      notEmpty: {
-        errorMessage: "Cart IDs are required",
-      },
-      isArray: {
-        errorMessage: "Cart IDs must be an array",
+    id: {
+      in: ["params"],
+      isInt: {
+        options: { min: 1 },
+        errorMessage: "Order ID must be a positive integer",
       },
       custom: {
         options: async (value, { req }) => {
-          if (!value.length) {
-            throw new Error("Cart IDs array cannot be empty");
+          const order = await Order.findByPk(value);
+          if (!order) {
+            throw new Error(`Order with ID ${value} not found`);
           }
-
-          for (const id of value) {
-            if (!Number.isInteger(id) || id < 1) {
-              throw new Error(`Invalid cart ID: ${id}`);
-            }
-            const cartItem = await Cart.findByPk(id);
-            if (!cartItem) {
-              throw new Error(`Cart item with ID ${id} does not exist`);
-            }
-            if (cartItem.user_id !== req.user.id) {
-              throw new Error(`Unauthorized to delete cart item with ID ${id}`);
-            }
+          if (Number(req.user.role) === 3 && order.user_id !== req.user.id) {
+            throw new Error("Unauthorized to update this order");
+          }
+          return true;
+        },
+      },
+    },
+    status: {
+      in: ["body"],
+      notEmpty: { errorMessage: "Status is required" },
+      isIn: {
+        options: [["UNPAID", "PAID", "SHIPPING", "DELIVERED", "CANCELED"]],
+        errorMessage:
+          "Status must be one of: UNPAID, PAID, SHIPPING, DELIVERED, CANCELED",
+      },
+      custom: {
+        options: async (value, { req }) => {
+          if (Number(req.user.role) === 3 && value !== "CANCELED") {
+            throw new Error("Customer can only set status to CANCELED");
+          }
+          if (Number(req.user.role) === 2 && value === "PAID") {
+            throw new Error("Staff cannot set status to PAID");
+          }
+          const order = await Order.findByPk(req.params.id);
+          if (Number(req.user.role) === 3 && order.status !== "UNPAID") {
+            throw new Error("Customer can only cancel UNPAID orders");
           }
           return true;
         },
@@ -155,4 +168,5 @@ const deleteMultipleCartItemsValidator = validate(
 
 module.exports = {
   createOrderValidator,
+  updateOrderStatusValidator,
 };

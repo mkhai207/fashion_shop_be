@@ -20,7 +20,7 @@ const createOrder = async (req, res) => {
 const retryPaymentHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await retryPayment(req.user, id, req.ip);
+    const result = await orderService.retryPayment(req.user, id, req.ip);
     res.status(200).json(result);
   } catch (error) {
     res.status(400).json({
@@ -32,37 +32,54 @@ const retryPaymentHandler = async (req, res) => {
   }
 };
 
-// const getAllCarts = async (req, res) => {
-//   try {
-//     const getCartsResponse = await cartService.getAllCarts(req.query);
-//     return res.status(200).json(getCartsResponse);
-//   } catch (error) {
-//     return res.status(error.statusCode || 500).json({
-//       status: "error",
-//       message: error.message,
-//       error: error.error,
-//       data: null,
-//     });
-//   }
-// };
+const getOrders = async (req, res) => {
+  try {
+    const getOrderResponse = await orderService.getOrders(req.query);
+    return res.status(200).json(getOrderResponse);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message,
+      error: error.error,
+      data: null,
+    });
+  }
+};
 
-// const updateCart = async (req, res) => {
-//   try {
-//     const updateCartResponse = await cartService.updateCart(
-//       req.user,
-//       req.params.id,
-//       req.body
-//     );
-//     return res.status(200).json(updateCartResponse);
-//   } catch (error) {
-//     return res.status(error.statusCode || 500).json({
-//       status: "error",
-//       message: error.message,
-//       error: error.error,
-//       data: null,
-//     });
-//   }
-// };
+const getOrderById = async (req, res) => {
+  try {
+    const getOrderResponse = await orderService.getOrderById(
+      req.user,
+      req.params.id
+    );
+    return res.status(200).json(getOrderResponse);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message,
+      error: error.error,
+      data: null,
+    });
+  }
+};
+
+const updateOrderStatus = async (req, res) => {
+  try {
+    const updateOrderResponse = await orderService.updateOrderStatus(
+      req.user,
+      req.params.id,
+      req.body.status
+    );
+    return res.status(200).json(updateOrderResponse);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message,
+      error: error.error,
+      data: null,
+    });
+  }
+};
 
 // const deleteCartById = async (req, res) => {
 //   try {
@@ -101,4 +118,7 @@ const retryPaymentHandler = async (req, res) => {
 module.exports = {
   createOrder,
   retryPaymentHandler,
+  getOrders,
+  getOrderById,
+  updateOrderStatus,
 };

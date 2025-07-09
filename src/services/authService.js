@@ -12,7 +12,6 @@ const register = (newUser) => {
   return new Promise(async (resolve, reject) => {
     const { fullName, phone, email, password, confirmPassword } = newUser;
     try {
-      console.log(">> email: ", email);
       const existEmail = await User.findOne({ where: { email } });
 
       if (existEmail !== null) {

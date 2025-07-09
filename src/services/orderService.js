@@ -1,12 +1,13 @@
 const db = require("../../models");
 const buildQuery = require("../utils/queryBuilder");
-// const { Sequelize } = require("sequelize");
 const User = db.User;
 const ProductVariant = db.ProductVariant;
 const Discount = db.Discount;
 const Order = db.Order;
 const OrderDetail = db.OrderDetail;
 const Product = db.Product;
+const Color = db.Color;
+const Size = db.Size;
 const sequelize = db.sequelize;
 const paymentService = require("./paymentService");
 
@@ -25,9 +26,10 @@ const createOrder = (currentUser, orderData, ipAddr = "127.0.0.1") => {
       } = orderData;
 
       const isAdmin = Number(currentUser.role) === 1;
+      const isStaff = Number(currentUser.role) === 2;
       const targetUserId = isAdmin && user?.id ? user.id : currentUser.id;
 
-      if (isAdmin && user?.id) {
+      if ((isAdmin || isStaff) && user?.id) {
         const userExists = await User.findByPk(user.id);
         if (!userExists) throw new Error("User not found");
       }
@@ -180,52 +182,6 @@ const createOrder = (currentUser, orderData, ipAddr = "127.0.0.1") => {
         await t.rollback();
         throw error;
       }
-      //   const order = await Order.create({
-      //     user_id: targetUserId,
-      //     name,
-      //     phone,
-      //     shipping_address,
-      //     payment_method: paymentMethod,
-      //     total_money,
-      //     discount_id,
-      //     status: validStatus,
-      //     created_at: date,
-      //     created_by: currentUser.id,
-      //     updated_at: date,
-      //     updated_by: currentUser.id,
-      //   });
-
-      //   const orderItems = orderItemsData.map((item) => ({
-      //     order_id: order.id,
-      //     product_variant_id: item.product_variant_id,
-      //     quantity: item.quantity,
-      //     price: item.price,
-      //     created_at: date,
-      //     created_by: currentUser.id,
-      //     updated_at: date,
-      //     updated_by: currentUser.id,
-      //   }));
-      //   await OrderDetail.bulkCreate(orderItems);
-
-      //   const updatePromises = orderItemsData.map((item) => {
-      //     return ProductVariant.update(
-      //       {
-      //         quantity: sequelize.literal(`quantity - ${item.quantity}`),
-      //       },
-      //       {
-      //         where: { id: item.product_variant_id },
-      //       }
-      //     );
-      //   });
-
-      //   await Promise.all(updatePromises);
-
-      //   return resolve({
-      //     status: "success",
-      //     message: "Create order successfully",
-      //     error: null,
-      //     data: { order, orderItems },
-      //   });
     } catch (error) {
       console.log(error);
       reject({
@@ -245,10 +201,7 @@ const retryPayment = (currentUser, orderId, ipAddr = "127.0.0.1") => {
         include: [{ model: OrderDetail, as: "orderDetails" }],
       });
       if (!order) throw new Error("Order not found");
-      if (
-        order.user_id !== currentUser.id &&
-        Number(currentUser.role_id) !== 1
-      ) {
+      if (order.user_id !== currentUser.id && Number(currentUser.role) !== 1) {
         throw new Error("Unauthorized to retry payment for this order");
       }
       if (order.payment_method !== "ONLINE" || order.status !== "UNPAID") {
@@ -272,7 +225,12 @@ const retryPayment = (currentUser, orderId, ipAddr = "127.0.0.1") => {
         })
       );
 
-      const vnpayUrl = await createVNPayUrl(order, order.total_money, ipAddr);
+      const vnpayUrl = await paymentService.createVNPayUrl(
+        order,
+        order.total_money,
+        ipAddr
+      );
+      console.log("Generated VNPay URL:", vnpayUrl);
       resolve({
         status: "success",
         message: "Retry payment URL generated",
@@ -291,146 +249,135 @@ const retryPayment = (currentUser, orderId, ipAddr = "127.0.0.1") => {
   });
 };
 
-// const getAllCarts = (query) => {
-//   return new Promise(async (resolve, reject) => {
-//     try {
-//       const result = await buildQuery(Cart, query, {
-//         attributes: [
-//           "id",
-//           "created_at",
-//           "created_by",
-//           "updated_at",
-//           "updated_by",
-//           "product_variant_id",
-//           "quantity",
-//           "user_id",
-//         ],
-//         allowedFilters: [
-//           "id",
-//           "created_at",
-//           "created_by",
-//           "updated_at",
-//           "updated_by",
-//           "product_variant_id",
-//           "quantity",
-//           "user_id",
-//         ],
-//         allowedSorts: ["created_at", "updated_at", "quantity"],
-//         defaultSort: [["created_at", "DESC"]],
-//         defaultLimit: 20,
-//         include: [
-//           {
-//             model: ProductVariant,
-//             as: "variant",
-//             include: [
-//               {
-//                 model: Product,
-//                 as: "product",
-//                 attributes: ["id", "name", "price"],
-//               },
-//               { model: Size, as: "size", attributes: ["id", "name"] },
-//               {
-//                 model: Color,
-//                 as: "color",
-//                 attributes: ["id", "name", "hex_code"],
-//               },
-//             ],
-//           },
-//         ],
-//       });
+const getOrders = (query) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const result = await buildQuery(Order, query, {
+        attributes: [
+          "id",
+          "created_at",
+          "created_by",
+          "updated_at",
+          "updated_by",
+          "name",
+          "payment_method",
+          "phone",
+          "shipping_address",
+          "status",
+          "total_money",
+          "discount_id",
+          "user_id",
+        ],
+        allowedFilters: [
+          "created_at",
+          "created_by",
+          "phone",
+          "status",
+          "user_id",
+        ],
+        allowedSorts: ["created_at", "name"],
+        defaultSort: [["created_at", "DESC"]],
+        defaultLimit: 20,
+      });
 
-//       resolve(result);
-//     } catch (error) {
-//       console.log(error);
-//       reject({
-//         status: "error",
-//         message: "Get variant fail",
-//         error: error.message,
-//         data: null,
-//       });
-//     }
-//   });
-// };
+      resolve(result);
+    } catch (error) {
+      console.log(error);
+      reject({
+        status: "error",
+        message: "Get order fail",
+        error: error.message,
+        data: null,
+      });
+    }
+  });
+};
 
-// const updateCart = (currentUser, cartId, cartData) => {
-//   return new Promise(async (resolve, reject) => {
-//     try {
-//       const cart = await Cart.findOne({
-//         where: { id: cartId },
-//       });
+const getOrderById = (currentUser, orderId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const order = await Order.findOne({
+        where: {
+          id: orderId,
+        },
+        include: [
+          {
+            model: OrderDetail,
+            as: "orderDetails",
+            include: [
+              {
+                model: ProductVariant,
+                as: "variant",
+                include: [
+                  { model: Product, as: "product" },
+                  { model: Color, as: "color" },
+                  { model: Size, as: "size" },
+                ],
+              },
+            ],
+          },
+          {
+            model: Discount,
+            as: "discount",
+          },
+        ],
+      });
+      if (!order) {
+        return reject({
+          statusCode: 404,
+          message: "Order not found",
+          error: null,
+          data: null,
+        });
+      }
 
-//       if (!cart) {
-//         return reject({
-//           statusCode: 404,
-//           message: "cart not found",
-//           error: "No cart found with the provided ID",
-//           data: null,
-//         });
-//       }
+      return resolve({
+        status: "success",
+        message: "Get order successfully",
+        error: null,
+        data: order,
+      });
+    } catch (error) {
+      console.log(error);
+      reject({
+        status: "error",
+        message: "Get order fail",
+        error: error.message,
+        data: null,
+      });
+    }
+  });
+};
 
-//       const isOwner = Number(currentUser.id) === Number(cart.user_id);
+const updateOrderStatus = (currentUser, orderId, newStatus) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      await Order.update(
+        { status: newStatus, updated_by: currentUser.id },
+        { where: { id: orderId } }
+      );
 
-//       if (!isOwner) {
-//         return reject({
-//           statusCode: 403,
-//           message: "Forbidden",
-//           error: "You do not have permission to update cart",
-//           data: null,
-//         });
-//       }
+      const updatedOrder = await Order.findByPk(orderId, {
+        include: [{ model: OrderDetail, as: "orderDetails" }],
+      });
 
-//       const updateData = {
-//         updated_at: new Date(),
-//         updated_by: currentUser.id,
-//         product_variant_id:
-//           cartData.product_variant_id !== undefined
-//             ? cartData.product_variant_id
-//             : cart.product_variant_id,
-//         quantity:
-//           cartData.quantity !== undefined ? cartData.quantity : cart.quantity,
-//       };
-
-//       const updatedCart = await cart.update(updateData);
-
-//       const cartDetail = await Cart.findByPk(cart.id, {
-//         include: [
-//           {
-//             model: ProductVariant,
-//             as: "variant",
-//             include: [
-//               {
-//                 model: Product,
-//                 as: "product",
-//                 attributes: ["id", "name", "price"],
-//               },
-//               { model: Size, as: "size", attributes: ["id", "name"] },
-//               {
-//                 model: Color,
-//                 as: "color",
-//                 attributes: ["id", "name", "hex_code"],
-//               },
-//             ],
-//           },
-//         ],
-//       });
-
-//       return resolve({
-//         status: "success",
-//         message: "Update cart successfully",
-//         error: null,
-//         data: cartDetail,
-//       });
-//     } catch (error) {
-//       console.log(error);
-//       reject({
-//         status: "error",
-//         message: "Update cart fail",
-//         error: error.message,
-//         data: null,
-//       });
-//     }
-//   });
-// };
+      return resolve({
+        status: "success",
+        message: "Update status successfully",
+        error: null,
+        data: updatedOrder,
+      });
+    } catch (error) {
+      console.log(error);
+      reject({
+        status: "error",
+        message: "Update status fail",
+        error: error.message,
+        data: null,
+      });
+    }
+  });
+};
 
 // const deleteCartById = (currentUser, cartId) => {
 //   return new Promise(async (resolve, reject) => {
@@ -517,4 +464,7 @@ const retryPayment = (currentUser, orderId, ipAddr = "127.0.0.1") => {
 module.exports = {
   createOrder,
   retryPayment,
+  getOrders,
+  getOrderById,
+  updateOrderStatus,
 };

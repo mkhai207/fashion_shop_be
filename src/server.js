@@ -41,7 +41,6 @@ app.get("/", (req, res) => {
     // await sequelize.sync({ force: false });
     const port = process.env.PORT || 8080;
     const hostname = process.env.HOSTNAME || "localhost";
-    console.log("Server Time:", new Date().toISOString());
     app.listen(port, () => {
       console.log(`Example app listening at http://${hostname}:${port}`);
       console.log(

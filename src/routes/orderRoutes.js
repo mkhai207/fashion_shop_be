@@ -17,4 +17,19 @@ orderRouter.post(
   orderController.retryPaymentHandler
 );
 
+orderRouter.get("/get-orders", orderController.getOrders);
+
+orderRouter.get(
+  "/get-orders/:id",
+  authMiddleware,
+  orderController.getOrderById
+);
+
+orderRouter.put(
+  "/update/:id",
+  authMiddleware,
+  orderValidator.updateOrderStatusValidator,
+  orderController.updateOrderStatus
+);
+
 module.exports = orderRouter;
