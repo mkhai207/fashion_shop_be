@@ -11,4 +11,10 @@ orderRouter.post(
   orderController.createOrder
 );
 
+orderRouter.post(
+  "/:id/retry-payment",
+  authMiddleware,
+  orderController.retryPaymentHandler
+);
+
 module.exports = orderRouter;

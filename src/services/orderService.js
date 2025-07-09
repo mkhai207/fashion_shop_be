@@ -1,14 +1,16 @@
 const db = require("../../models");
 const buildQuery = require("../utils/queryBuilder");
-const { Sequelize } = require("sequelize");
+// const { Sequelize } = require("sequelize");
 const User = db.User;
 const ProductVariant = db.ProductVariant;
 const Discount = db.Discount;
 const Order = db.Order;
 const OrderDetail = db.OrderDetail;
 const Product = db.Product;
+const sequelize = db.sequelize;
+const paymentService = require("./paymentService");
 
-const createOrder = (currentUser, orderData) => {
+const createOrder = (currentUser, orderData, ipAddr = "127.0.0.1") => {
   return new Promise(async (resolve, reject) => {
     try {
       const {
@@ -112,57 +114,176 @@ const createOrder = (currentUser, orderData) => {
       }
 
       const date = new Date();
-      const order = await Order.create({
-        user_id: targetUserId,
-        name,
-        phone,
-        shipping_address,
-        payment_method: paymentMethod,
-        total_money,
-        discount_id,
-        status: validStatus,
-        created_at: date,
-        created_by: currentUser.id,
-        updated_at: date,
-        updated_by: currentUser.id,
-      });
-
-      const orderItems = orderItemsData.map((item) => ({
-        order_id: order.id,
-        product_variant_id: item.product_variant_id,
-        quantity: item.quantity,
-        price: item.price,
-        created_at: date,
-        created_by: currentUser.id,
-        updated_at: date,
-        updated_by: currentUser.id,
-      }));
-      await OrderDetail.bulkCreate(orderItems);
-
-      const updatePromises = orderItemsData.map((item) => {
-        return ProductVariant.update(
+      const t = await sequelize.transaction();
+      try {
+        const order = await Order.create(
           {
-            quantity: Sequelize.literal(`quantity - ${item.quantity}`),
+            user_id: targetUserId,
+            name,
+            phone,
+            shipping_address,
+            payment_method: paymentMethod,
+            total_money,
+            discount_id,
+            status: validStatus,
+            created_at: date,
+            created_by: currentUser.id,
+            updated_at: date,
+            updated_by: currentUser.id,
+            transaction_id: null,
           },
-          {
-            where: { id: item.product_variant_id },
-          }
+          { transaction: t }
         );
-      });
 
-      await Promise.all(updatePromises);
+        const orderItems = orderItemsData.map((item) => ({
+          order_id: order.id,
+          product_variant_id: item.product_variant_id,
+          quantity: item.quantity,
+          price: item.price,
+          created_at: date,
+          created_by: currentUser.id,
+          updated_at: date,
+          updated_by: currentUser.id,
+        }));
+        await OrderDetail.bulkCreate(orderItems, { transaction: t });
 
-      return resolve({
-        status: "success",
-        message: "Create order successfully",
-        error: null,
-        data: { order, orderItems },
-      });
+        if (paymentMethod === "ONLINE") {
+          const vnpayUrl = await paymentService.createVNPayUrl(
+            order,
+            total_money,
+            ipAddr
+          );
+          await t.commit();
+          resolve({
+            status: "success",
+            message: "Order created, redirect to VNPAY",
+            error: null,
+            data: { order, orderItems, vnpayUrl },
+          });
+        } else {
+          const updatePromises = orderItemsData.map((item) =>
+            ProductVariant.update(
+              { quantity: sequelize.literal(`quantity - ${item.quantity}`) },
+              { where: { id: item.product_variant_id }, transaction: t }
+            )
+          );
+          await Promise.all(updatePromises);
+          await t.commit();
+          resolve({
+            status: "success",
+            message: "Create order successfully",
+            error: null,
+            data: { order, orderItems },
+          });
+        }
+      } catch (error) {
+        await t.rollback();
+        throw error;
+      }
+      //   const order = await Order.create({
+      //     user_id: targetUserId,
+      //     name,
+      //     phone,
+      //     shipping_address,
+      //     payment_method: paymentMethod,
+      //     total_money,
+      //     discount_id,
+      //     status: validStatus,
+      //     created_at: date,
+      //     created_by: currentUser.id,
+      //     updated_at: date,
+      //     updated_by: currentUser.id,
+      //   });
+
+      //   const orderItems = orderItemsData.map((item) => ({
+      //     order_id: order.id,
+      //     product_variant_id: item.product_variant_id,
+      //     quantity: item.quantity,
+      //     price: item.price,
+      //     created_at: date,
+      //     created_by: currentUser.id,
+      //     updated_at: date,
+      //     updated_by: currentUser.id,
+      //   }));
+      //   await OrderDetail.bulkCreate(orderItems);
+
+      //   const updatePromises = orderItemsData.map((item) => {
+      //     return ProductVariant.update(
+      //       {
+      //         quantity: sequelize.literal(`quantity - ${item.quantity}`),
+      //       },
+      //       {
+      //         where: { id: item.product_variant_id },
+      //       }
+      //     );
+      //   });
+
+      //   await Promise.all(updatePromises);
+
+      //   return resolve({
+      //     status: "success",
+      //     message: "Create order successfully",
+      //     error: null,
+      //     data: { order, orderItems },
+      //   });
     } catch (error) {
       console.log(error);
       reject({
         status: "error",
         message: "Create order fail",
+        error: error.message,
+        data: null,
+      });
+    }
+  });
+};
+
+const retryPayment = (currentUser, orderId, ipAddr = "127.0.0.1") => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const order = await Order.findByPk(orderId, {
+        include: [{ model: OrderDetail, as: "orderDetails" }],
+      });
+      if (!order) throw new Error("Order not found");
+      if (
+        order.user_id !== currentUser.id &&
+        Number(currentUser.role_id) !== 1
+      ) {
+        throw new Error("Unauthorized to retry payment for this order");
+      }
+      if (order.payment_method !== "ONLINE" || order.status !== "UNPAID") {
+        throw new Error("Order is not eligible for retry payment");
+      }
+
+      const orderItems = order.orderDetails;
+      await Promise.all(
+        orderItems.map(async (item) => {
+          const variant = await ProductVariant.findByPk(
+            item.product_variant_id
+          );
+          if (!variant)
+            throw new Error(
+              `Product variant ${item.product_variant_id} not found`
+            );
+          if (item.quantity > variant.quantity)
+            throw new Error(
+              `Insufficient stock for product variant ${item.product_variant_id}`
+            );
+        })
+      );
+
+      const vnpayUrl = await createVNPayUrl(order, order.total_money, ipAddr);
+      resolve({
+        status: "success",
+        message: "Retry payment URL generated",
+        error: null,
+        data: { order, vnpayUrl },
+      });
+    } catch (error) {
+      console.error("Error in retryPayment:", error.stack);
+      reject({
+        status: "error",
+        message: "Failed to generate retry payment URL",
         error: error.message,
         data: null,
       });
@@ -395,4 +516,5 @@ const createOrder = (currentUser, orderData) => {
 
 module.exports = {
   createOrder,
+  retryPayment,
 };

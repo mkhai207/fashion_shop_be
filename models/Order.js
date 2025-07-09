@@ -58,6 +58,9 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.BIGINT,
         references: { model: "Users", key: "id" },
       },
+      transaction_id: {
+        type: DataTypes.STRING(50),
+      },
     },
     {
       tableName: "orders",

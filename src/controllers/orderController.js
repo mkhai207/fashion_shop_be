@@ -17,6 +17,21 @@ const createOrder = async (req, res) => {
   }
 };
 
+const retryPaymentHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await retryPayment(req.user, id, req.ip);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(400).json({
+      status: "error",
+      message: "Failed to retry payment",
+      error: error.message,
+      data: null,
+    });
+  }
+};
+
 // const getAllCarts = async (req, res) => {
 //   try {
 //     const getCartsResponse = await cartService.getAllCarts(req.query);
@@ -85,4 +100,5 @@ const createOrder = async (req, res) => {
 
 module.exports = {
   createOrder,
+  retryPaymentHandler,
 };
