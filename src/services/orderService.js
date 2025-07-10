@@ -77,7 +77,11 @@ const createOrder = (currentUser, orderData, ipAddr = "127.0.0.1") => {
         const discount = await Discount.findOne({
           where: { code: discount_code },
         });
-        if (!discount || discount.valid_until < new Date()) {
+        if (
+          !discount ||
+          discount.valid_until < new Date() ||
+          discount.valid_from > new Date()
+        ) {
           throw new Error("Invalid or expired discount code");
         }
         if (total_money < discount.minimum_order_value) {
@@ -85,7 +89,12 @@ const createOrder = (currentUser, orderData, ipAddr = "127.0.0.1") => {
             `Order value must be at least ${discount.minimum_order_value} to apply this discount`
           );
         }
-        let discount_amount = total_money * (discount.percentage / 100);
+        let discount_amount = 0;
+        if (discount.discount_type === "PERCENTAGE") {
+          discount_amount = total_money * (discount.discount_value / 100);
+        } else if (discount.discount_type === "FIXED") {
+          discount_amount = discount.discount_value;
+        }
         if (
           discount.max_discount_amount &&
           discount_amount > discount.max_discount_amount
@@ -296,6 +305,8 @@ const getOrders = (query) => {
 const getOrderById = (currentUser, orderId) => {
   return new Promise(async (resolve, reject) => {
     try {
+      const isCustomer = Number(currentUser.role) === 3;
+
       const order = await Order.findOne({
         where: {
           id: orderId,
@@ -327,6 +338,15 @@ const getOrderById = (currentUser, orderId) => {
           statusCode: 404,
           message: "Order not found",
           error: null,
+          data: null,
+        });
+      }
+
+      if (isCustomer && order.user_id !== currentUser.id) {
+        return reject({
+          statusCode: 403,
+          message: "Forbidden",
+          error: "You do not have permission to access this order",
           data: null,
         });
       }
@@ -378,88 +398,6 @@ const updateOrderStatus = (currentUser, orderId, newStatus) => {
     }
   });
 };
-
-// const deleteCartById = (currentUser, cartId) => {
-//   return new Promise(async (resolve, reject) => {
-//     try {
-//       const cart = await Cart.findOne({
-//         where: { id: cartId },
-//       });
-
-//       if (!cart) {
-//         return reject({
-//           statusCode: 404,
-//           message: "cart not found",
-//           error: "No cart found with the provided ID",
-//           data: null,
-//         });
-//       }
-
-//       const isOwner = Number(currentUser.id) === Number(cart.user_id);
-
-//       if (!isOwner) {
-//         return reject({
-//           statusCode: 403,
-//           message: "Forbidden",
-//           error: "You do not have permission to delete cart",
-//           data: null,
-//         });
-//       }
-
-//       await cart.destroy();
-
-//       return resolve({
-//         status: "success",
-//         message: "Delete variant successfully",
-//         error: null,
-//         data: null,
-//       });
-//     } catch (error) {
-//       console.log(error);
-//       reject({
-//         status: "error",
-//         message: "Delete cart fail",
-//         error: error.message,
-//         data: null,
-//       });
-//     }
-//   });
-// };
-
-// const deleteMultiCartItems = (currentUser, cartIds) => {
-//   return new Promise(async (resolve, reject) => {
-//     try {
-//       const cartItems = await Cart.findAll({
-//         where: { id: cartIds, user_id: currentUser.id },
-//       });
-
-//       if (cartItems.length !== cartIds.length) {
-//         return reject({
-//           statusCode: 404,
-//           message: "Cart not found",
-//           error: "Some cart items do not exist",
-//           data: null,
-//         });
-//       }
-//       await Cart.destroy({ where: { id: cartIds } });
-
-//       return resolve({
-//         status: "success",
-//         message: "Delete cart items successfully",
-//         error: null,
-//         data: null,
-//       });
-//     } catch (error) {
-//       console.log(error);
-//       reject({
-//         status: "error",
-//         message: "Delete cart items fail",
-//         error: error.message,
-//         data: null,
-//       });
-//     }
-//   });
-// };
 
 module.exports = {
   createOrder,

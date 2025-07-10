@@ -29,8 +29,29 @@ module.exports = (sequelize, DataTypes) => {
         unique: true,
         allowNull: false,
       },
-      percentage: {
-        type: DataTypes.FLOAT,
+      name: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+      },
+      description: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      discount_value: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0,
+      },
+      discount_type: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: "FIXED",
+        validate: {
+          isIn: [["FIXED", "PERCENTAGE"]],
+        },
+      },
+      valid_from: {
+        type: DataTypes.DATE,
         allowNull: false,
       },
       valid_until: {

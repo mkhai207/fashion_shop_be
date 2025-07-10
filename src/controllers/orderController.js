@@ -81,40 +81,6 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
-// const deleteCartById = async (req, res) => {
-//   try {
-//     const deleteCartResponse = await cartService.deleteCartById(
-//       req.user,
-//       req.params.id
-//     );
-//     return res.status(200).json(deleteCartResponse);
-//   } catch (error) {
-//     return res.status(error.statusCode || 500).json({
-//       status: "error",
-//       message: error.message,
-//       error: error.error,
-//       data: null,
-//     });
-//   }
-// };
-
-// const deleteMultiCartItems = async (req, res) => {
-//   try {
-//     const deleteCartResponse = await cartService.deleteMultiCartItems(
-//       req.user,
-//       req.body.cartIds
-//     );
-//     return res.status(200).json(deleteCartResponse);
-//   } catch (error) {
-//     return res.status(error.statusCode || 500).json({
-//       status: "error",
-//       message: error.message,
-//       error: error.error,
-//       data: null,
-//     });
-//   }
-// };
-
 module.exports = {
   createOrder,
   retryPaymentHandler,
