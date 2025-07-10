@@ -25,11 +25,15 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(255),
       },
       rating: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.FLOAT,
         allowNull: false,
       },
       comment: {
         type: DataTypes.TEXT,
+      },
+      images: {
+        type: DataTypes.TEXT,
+        allowNull: true,
       },
       user_id: {
         type: DataTypes.BIGINT,
