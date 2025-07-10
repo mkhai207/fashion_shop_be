@@ -11,6 +11,7 @@ const orderRouter = require("./orderRoutes");
 const paymentRouter = require("./paymentRoutes");
 const discountRouter = require("./discountRoutes");
 const reviewRouter = require("./reviewRoutes");
+const uploadRouter = require("./uploadRoutes");
 
 const routes = (app) => {
   app.use("/api/v0/auth", authRouter);
@@ -26,6 +27,7 @@ const routes = (app) => {
   app.use("/api/v0/payment", paymentRouter);
   app.use("/api/v0/discounts", discountRouter);
   app.use("/api/v0/reviews", reviewRouter);
+  app.use("/api/v0/upload", uploadRouter);
 };
 
 module.exports = routes;
