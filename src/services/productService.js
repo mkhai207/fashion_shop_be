@@ -4,6 +4,7 @@ const Product = db.Product;
 const Brand = db.Brand;
 const Category = db.Category;
 const { v4: uuidv4 } = require("uuid");
+const client = require("../../config/elasticSearch");
 
 const createProduct = (currentUser, productData) => {
   return new Promise(async (resolve, reject) => {
@@ -24,6 +25,7 @@ const createProduct = (currentUser, productData) => {
         price: productData.price,
         gender: productData.gender,
         sold: productData.sold !== undefined ? productData.sold : 0,
+        rating: 0,
         status: productData.status !== undefined ? productData.status : true,
         thumbnail: productData.thumbnail,
         slider: productData.slider,
@@ -34,6 +36,7 @@ const createProduct = (currentUser, productData) => {
         created_at: new Date(),
         updated_at: new Date(),
       });
+      await syncSingleProduct(product);
 
       return resolve({
         status: "success",
@@ -68,6 +71,7 @@ const getAllProduct = (query) => {
           "price",
           "gender",
           "sold",
+          "rating",
           "status",
           "thumbnail",
           "slider",
@@ -79,11 +83,12 @@ const getAllProduct = (query) => {
           "gender",
           "price",
           "sold",
+          "rating",
           "status",
           "category_id",
           "brand_id",
         ],
-        allowedSorts: ["created_at", "price", "sold"],
+        allowedSorts: ["created_at", "price", "sold", "rating"],
         defaultSort: [["created_at", "DESC"]],
         defaultLimit: 20,
         include: [
@@ -186,6 +191,7 @@ const updateProduct = (currentUser, productId, productData) => {
             ? productData.gender
             : product.gender,
         sold: productData.sold !== undefined ? productData.sold : product.sold,
+        rating: product.rating || 0,
         status:
           productData.status !== undefined
             ? productData.status
@@ -209,6 +215,7 @@ const updateProduct = (currentUser, productId, productData) => {
       };
 
       const updatedProduct = await product.update(updateData);
+      await syncSingleProduct(product);
 
       const { brand_id, category_id, ...sanitizedProduct } =
         updatedProduct.toJSON();
@@ -276,10 +283,104 @@ const deleteProduct = (currentUser, productId) => {
   });
 };
 
+const syncProductsToElasticsearch = async () => {
+  try {
+    const products = await Product.findAll({
+      include: [
+        { model: Category, as: "category", attributes: ["id", "name"] },
+        { model: Brand, as: "brand", attributes: ["id", "name"] },
+      ],
+    });
+
+    const operations = products.flatMap((product) => [
+      { index: { _index: "products", _id: product.id } },
+      {
+        id: product.id,
+        name: product.name,
+        description: product.description || "",
+        price: product.price,
+        gender: product.gender,
+        sold: product.sold || 0,
+        status: product.status,
+        thumbnail: product.thumbnail || "",
+        slider: product.slider ? product.slider.split(",") : [],
+        category_id: product.category_id,
+        category_name: product.category ? product.category.name : "",
+        brand_id: product.brand_id,
+        brand_name: product.brand ? product.brand.name : "",
+        rating: product.rating || 0,
+        created_at: product.created_at,
+        updated_at: product.updated_at,
+        created_by: product.created_by || "",
+        updated_by: product.updated_by || "",
+      },
+    ]);
+
+    if (operations.length > 0) {
+      const result = await client.bulk({ body: operations });
+      if (result.errors) {
+        console.error("Errors during bulk indexing:", result.items);
+      } else {
+        console.log(
+          "Products synced to Elasticsearch:",
+          result.items.length / 2
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Error syncing products to Elasticsearch:", error);
+  }
+};
+
+const syncSingleProduct = async (product) => {
+  try {
+    const productWithRelations = await Product.findByPk(product.id, {
+      include: [
+        { model: Category, as: "category", attributes: ["id", "name"] },
+        { model: Brand, as: "brand", attributes: ["id", "name"] },
+      ],
+    });
+
+    await client.index({
+      index: "products",
+      id: product.id,
+      body: {
+        id: product.id,
+        name: product.name,
+        description: product.description || "",
+        price: product.price,
+        gender: product.gender,
+        sold: product.sold || 0,
+        status: product.status,
+        thumbnail: product.thumbnail || "",
+        slider: product.slider ? product.slider.split(",") : [], // Tách chuỗi slider bằng dấu phẩy
+        category_id: product.category_id,
+        category_name: productWithRelations.category
+          ? productWithRelations.category.name
+          : "",
+        band_id: product.brand_id,
+        brand_name: productWithRelations.brand
+          ? productWithRelations.brand.name
+          : "",
+        rating: product.rating || 0,
+        created_at: product.created_at,
+        updated_at: product.updated_at,
+        created_by: product.created_by || "",
+        updated_by: product.updated_by || "",
+      },
+    });
+    console.log(`Product ${product.id} synced to Elasticsearch`);
+  } catch (error) {
+    console.error(`Error syncing product ${product.id}:`, error);
+  }
+};
+
 module.exports = {
   createProduct,
   getAllProduct,
   getProductById,
   updateProduct,
   deleteProduct,
+  syncProductsToElasticsearch,
+  syncSingleProduct,
 };

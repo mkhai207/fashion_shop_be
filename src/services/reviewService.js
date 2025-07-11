@@ -2,6 +2,7 @@ const db = require("../../models");
 const buildQuery = require("../utils/queryBuilder");
 const Review = db.Review;
 const Sequelize = db.sequelize;
+const Product = db.Product;
 
 const createReview = (currentUser, reviewData) => {
   return new Promise(async (resolve, reject) => {
@@ -24,6 +25,20 @@ const createReview = (currentUser, reviewData) => {
         created_by: currentUser.id,
         updated_by: currentUser.id,
       });
+
+      const allReviews = await Review.findAll({
+        where: { product_id: reviewData.product_id },
+        attributes: ["rating"],
+      });
+
+      const averageRating =
+        allReviews.reduce((acc, cur) => acc + cur.rating, 0) /
+        allReviews.length;
+
+      await Product.update(
+        { rating: averageRating },
+        { where: { id: reviewData.product_id } }
+      );
 
       return resolve({
         status: "success",
