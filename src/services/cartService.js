@@ -9,31 +9,47 @@ const Product = db.Product;
 const addToCart = (currentUser, cartData) => {
   return new Promise(async (resolve, reject) => {
     try {
+      const { product_id, color_id, size_id, quantity } = cartData;
       const date = new Date();
+
+      const variant = await ProductVariant.findOne({
+        where: {
+          product_id,
+          color_id,
+          size_id,
+          active: true,
+        },
+      });
+
+      if (!variant) {
+        return reject({
+          status: "error",
+          message: "Product variant not found",
+          error: null,
+          data: null,
+        });
+      }
+
+      const parsedQuantity = parseInt(quantity, 10);
+      if (parsedQuantity > variant.quantity) {
+        throw new Error(
+          `Quantity exceeds available stock (${variant.quantity})`
+        );
+      }
+
       let cart;
       const existingCartItem = await Cart.findOne({
         where: {
           user_id: currentUser.id,
-          product_variant_id: cartData.product_variant_id,
+          product_variant_id: variant.id,
         },
       });
 
       if (existingCartItem) {
-        const newQuantity = existingCartItem.quantity + cartData.quantity;
-        const variant = await ProductVariant.findByPk(
-          cartData.product_variant_id
-        );
-        if (!variant || !variant.active) {
-          return reject({
-            statusCode: 404,
-            message: "variant not found",
-            error: "No variant found with the provided ID",
-            data: null,
-          });
-        }
+        const newQuantity = existingCartItem.quantity + parsedQuantity;
         if (newQuantity > variant.quantity) {
           throw new Error(
-            `Quantity exceeds available stock (${variant.quantity})`
+            `Total quantity exceeds available stock (${variant.quantity})`
           );
         }
         cart = await existingCartItem.update({
@@ -47,8 +63,8 @@ const addToCart = (currentUser, cartData) => {
           created_by: currentUser.id,
           updated_at: date,
           updated_by: currentUser.id,
-          product_variant_id: cartData.product_variant_id,
-          quantity: cartData.quantity,
+          product_variant_id: variant.id,
+          quantity: parsedQuantity,
           user_id: currentUser.id,
         });
       }
@@ -75,7 +91,7 @@ const addToCart = (currentUser, cartData) => {
         ],
       });
 
-      return resolve({
+      resolve({
         status: "success",
         message: "Add to cart successfully",
         error: null,

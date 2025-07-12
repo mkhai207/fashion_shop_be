@@ -6,26 +6,33 @@ const Cart = db.Cart;
 
 const addToCartValidator = validate(
   checkSchema({
-    product_variant_id: {
+    product_id: {
       notEmpty: {
-        errorMessage: "Product variant ID is required",
+        errorMessage: "Product ID is required",
+      },
+      isString: {
+        errorMessage: "Product ID must be a string",
+      },
+    },
+    color_id: {
+      notEmpty: {
+        errorMessage: "Color ID is required",
       },
       isInt: {
         options: { min: 1 },
-        errorMessage: "Product variant ID must be a positive integer",
+        errorMessage: "Color ID must be a positive integer",
       },
-      custom: {
-        options: async (value) => {
-          const variant = await ProductVariant.findByPk(value);
-          if (!variant) {
-            throw new Error("Product variant does not exist");
-          }
-          if (!variant.active) {
-            throw new Error("Product variant is inactive");
-          }
-          return true;
-        },
+      toInt: true,
+    },
+    size_id: {
+      notEmpty: {
+        errorMessage: "Size ID is required",
       },
+      isInt: {
+        options: { min: 1 },
+        errorMessage: "Size ID must be a positive integer",
+      },
+      toInt: true,
     },
     quantity: {
       notEmpty: {
@@ -35,12 +42,22 @@ const addToCartValidator = validate(
         options: { min: 1 },
         errorMessage: "Quantity must be a positive integer",
       },
+      toInt: true,
       custom: {
         options: async (value, { req }) => {
-          const variant = await ProductVariant.findByPk(
-            req.body.product_variant_id
-          );
-          if (variant && value > variant.quantity) {
+          const { product_id, color_id, size_id } = req.body;
+          const variant = await ProductVariant.findOne({
+            where: {
+              product_id,
+              color_id,
+              size_id,
+              active: true,
+            },
+          });
+          if (!variant) {
+            throw new Error("Product variant does not exist or is inactive");
+          }
+          if (value > variant.quantity) {
             throw new Error(
               `Quantity exceeds available stock (${variant.quantity})`
             );

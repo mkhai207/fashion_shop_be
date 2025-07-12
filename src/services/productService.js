@@ -3,6 +3,9 @@ const buildQuery = require("../utils/queryBuilder");
 const Product = db.Product;
 const Brand = db.Brand;
 const Category = db.Category;
+const Color = db.Color;
+const Size = db.Size;
+const ProductVariant = db.ProductVariant;
 const { v4: uuidv4 } = require("uuid");
 const client = require("../../config/elasticSearch");
 
@@ -130,16 +133,55 @@ const getProductById = (productId) => {
             as: "category",
             attributes: ["id", "code", "name"],
           },
+          {
+            model: ProductVariant,
+            as: "variants",
+            attributes: ["id", "color_id", "size_id", "quantity"],
+            include: [
+              { model: Color, as: "color", attributes: ["id", "name"] },
+              { model: Size, as: "size", attributes: ["id", "name"] },
+            ],
+          },
         ],
       });
 
-      const { brand_id, category_id, ...sanitizedProduct } = product.toJSON();
+      if (!product) {
+        return reject({
+          status: "error",
+          message: "Product not found",
+          error: null,
+          data: null,
+        });
+      }
+
+      const { brand_id, category_id, variants, ...sanitizedProduct } =
+        product.toJSON();
+
+      const colors = [
+        ...new Map(variants.map((v) => [v.color.id, v.color])).values(),
+      ];
+      const sizes = [
+        ...new Map(variants.map((v) => [v.size.id, v.size])).values(),
+      ];
+      const variantsWithStock = variants.map((v) => ({
+        variantId: v.id,
+        colorId: v.color_id,
+        sizeId: v.size_id,
+        stock: v.quantity,
+        color: v.color,
+        size: v.size,
+      }));
 
       return resolve({
         status: "success",
         message: "Get product successfully",
         error: null,
-        data: sanitizedProduct,
+        data: {
+          ...sanitizedProduct,
+          colors,
+          sizes,
+          variants: variantsWithStock,
+        },
       });
     } catch (error) {
       console.log(error);
