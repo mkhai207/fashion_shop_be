@@ -6,8 +6,13 @@ const yaml = require("yamljs");
 const path = require("path");
 const sequelize = require("../config/database");
 const routes = require("./routes/index");
+const cors = require("cors");
+const corsOptions = require("../config/cor");
 
 const app = express();
+
+// cors
+app.use(cors());
 
 // Middleware
 app.use(express.json());
