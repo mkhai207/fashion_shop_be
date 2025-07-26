@@ -395,6 +395,44 @@ const deleteMultiCartItems = (currentUser, cartIds) => {
   });
 };
 
+const deleteAllCart = (currentUser) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const cartItems = await Cart.findAll({
+        where: { user_id: currentUser.id },
+      });
+
+      if (!cartItems || cartItems.length === 0) {
+        return resolve({
+          status: "success",
+          message: "No cart items to delete",
+          error: null,
+          data: null,
+        });
+      }
+
+      const cartIds = cartItems.map((item) => item.id);
+
+      await Cart.destroy({ where: { id: cartIds } });
+
+      return resolve({
+        status: "success",
+        message: "Delete cart items successfully",
+        error: null,
+        data: null,
+      });
+    } catch (error) {
+      console.log(error);
+      reject({
+        status: "error",
+        message: "Delete cart items fail",
+        error: error.message,
+        data: null,
+      });
+    }
+  });
+};
+
 module.exports = {
   addToCart,
   getAllCarts,
@@ -402,4 +440,5 @@ module.exports = {
   updateCart,
   deleteCartById,
   deleteMultiCartItems,
+  deleteAllCart,
 };

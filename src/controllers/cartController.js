@@ -94,6 +94,20 @@ const deleteMultiCartItems = async (req, res) => {
   }
 };
 
+const deleteAllCart = async (req, res) => {
+  try {
+    const deleteCartResponse = await cartService.deleteAllCart(req.user);
+    return res.status(200).json(deleteCartResponse);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message,
+      error: error.error,
+      data: null,
+    });
+  }
+};
+
 module.exports = {
   addToCart,
   getAllCarts,
@@ -101,4 +115,5 @@ module.exports = {
   deleteCartById,
   deleteMultiCartItems,
   getMyCart,
+  deleteAllCart,
 };

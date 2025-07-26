@@ -31,4 +31,6 @@ cartRouter.delete(
   cartController.deleteMultiCartItems
 );
 
+cartRouter.delete("/delete-all", authMiddleware, cartController.deleteAllCart);
+
 module.exports = cartRouter;
