@@ -62,10 +62,10 @@ const handleVNPayReturn = async (req, res) => {
         );
         await Promise.all(updatePromises);
         await t.commit();
-        return res.redirect("http://your-frontend.com/payment-success");
+        return res.redirect("http://localhost:3000/order/order-success");
       } else {
         await t.commit();
-        return res.redirect("http://your-frontend.com/payment-retry");
+        return res.redirect("http://localhost:3000/order/order-fail");
       }
     } catch (error) {
       await t.rollback();

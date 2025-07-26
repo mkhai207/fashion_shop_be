@@ -156,7 +156,7 @@ const updateUserById = (userId, currentUser, updateData) => {
       }
 
       const mappedData = {
-        full_name: updateData.fullName,
+        full_name: updateData.fullname,
         phone: updateData.phone,
         avatar: updateData.avatar,
         birthday: updateData.birthday,

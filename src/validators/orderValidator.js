@@ -1,4 +1,4 @@
-const { checkSchema } = require("express-validator");
+const { checkSchema, body } = require("express-validator");
 const validate = require("../utils/validation");
 const db = require("../../models");
 const Order = db.Order;
@@ -13,7 +13,7 @@ const createOrderValidator = validate(
       custom: {
         options: async (value, { req }) => {
           if (!value || !value.id) return true;
-          if (Number(req.user.role) !== 1 || Number(req.user.role) !== 2)
+          if (Number(req.user.role) === 3)
             throw new Error("Only admin or staff can specify user");
           const user = await User.findByPk(value.id);
           if (!user) throw new Error("User not found");
@@ -96,7 +96,7 @@ const createOrderValidator = validate(
       custom: {
         options: async (value, { req }) => {
           if (!value || value === "") return true;
-          if (Number(req.user.role) !== 1 || Number(req.user.role) !== 2) {
+          if (Number(req.user.role) === 3) {
             throw new Error("Only admin or staff can specify status");
           }
           if (

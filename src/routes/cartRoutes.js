@@ -11,7 +11,9 @@ cartRouter.post(
   cartController.addToCart
 );
 
-cartRouter.get("/get-carts", cartController.getAllCarts);
+cartRouter.get("/get-carts", authMiddleware, cartController.getAllCarts);
+
+cartRouter.get("/get-my-cart", authMiddleware, cartController.getMyCart);
 
 cartRouter.put(
   "/update/:id",

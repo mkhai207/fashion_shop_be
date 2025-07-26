@@ -1,6 +1,7 @@
 const { sign } = require("jsonwebtoken");
 const db = require("../../models");
 const User = db.User;
+const Role = db.Role;
 const { hashPassword } = require("../utils/crypto");
 const {
   signAccessToken,
@@ -57,7 +58,16 @@ const login = (user) => {
   return new Promise(async (resolve, reject) => {
     const { email, password } = user;
     try {
-      const checkUser = await User.findOne({ where: { email } });
+      const checkUser = await User.findOne({
+        where: { email },
+        include: [
+          {
+            model: Role,
+            as: "role",
+            attributes: ["id", "name", "code"],
+          },
+        ],
+      });
 
       if (checkUser === null || checkUser.active === false) {
         reject({
@@ -99,10 +109,10 @@ const login = (user) => {
         error: null,
         data: {
           id: checkUser.id,
-          full_name: checkUser.full_name,
+          fullName: checkUser.full_name,
           email: checkUser.email,
           phone: checkUser.phone,
-          role: checkUser.role_id,
+          role: checkUser.role,
           avatar: checkUser.avatar,
         },
         accessToken,
@@ -157,7 +167,16 @@ const logout = (userId) => {
 const getMe = (userId) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const user = await User.findOne({ where: { id: userId } });
+      const user = await User.findOne({
+        where: { id: userId },
+        include: [
+          {
+            model: Role,
+            as: "role",
+            attributes: ["id", "name", "code"],
+          },
+        ],
+      });
       if (!user) {
         return reject({
           statusCode: 404,
@@ -179,7 +198,7 @@ const getMe = (userId) => {
         full_name,
         gender,
         phone,
-        role_id,
+        role,
       } = user;
       return resolve({
         status: "success",
@@ -195,10 +214,10 @@ const getMe = (userId) => {
           avatar,
           birthday,
           email,
-          full_name,
+          fullName: full_name,
           gender,
           phone,
-          role_id,
+          role,
         },
       });
     } catch (error) {
@@ -253,10 +272,76 @@ const refresh = (refreshToken) => {
   });
 };
 
+const updateMe = (userId, updateData) => {
+  return new Promise(async (resolve, reject) => {
+    console.log("updateData", updateData);
+    try {
+      const user = await User.findOne({ where: { id: userId } });
+      if (!user) {
+        return reject({
+          statusCode: 404,
+          message: "User not found",
+          error: "The user does not exist",
+          data: null,
+        });
+      }
+
+      const mappedData = {
+        full_name: updateData.fullname,
+        phone: updateData.phone,
+        avatar: updateData.avatar,
+        birthday: updateData.birthday,
+        gender: updateData.gender,
+      };
+
+      const allowedFields = [
+        "full_name",
+        "phone",
+        "avatar",
+        "birthday",
+        "gender",
+      ];
+
+      allowedFields.forEach((field) => {
+        if (mappedData[field] !== undefined) {
+          user[field] = mappedData[field];
+        }
+      });
+      await user.save();
+
+      if (!user) {
+        return reject({
+          statusCode: 404,
+          message: "User not found",
+          error: "NOT_FOUND",
+          data: null,
+        });
+      }
+
+      const { password, refresh_token, ...sanitizedUser } = user.toJSON();
+      return resolve({
+        status: "success",
+        message: "User updated successfully",
+        error: null,
+        data: sanitizedUser,
+      });
+    } catch (error) {
+      console.log(error);
+      reject({
+        status: "error",
+        message: "User updated fail",
+        error: error.message,
+        data: null,
+      });
+    }
+  });
+};
+
 module.exports = {
   register,
   login,
   logout,
   getMe,
   refresh,
+  updateMe,
 };

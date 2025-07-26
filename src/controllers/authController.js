@@ -61,9 +61,23 @@ const getMe = async (req, res) => {
 
 const refresh = async (req, res) => {
   try {
-    const refreshToken = req.body.refreshToken;
+    const refreshToken = req.headers.authorization?.split(" ")[1];
     const refreshResponse = await authService.refresh(refreshToken);
     return res.status(200).json(refreshResponse);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message,
+      error: error.error,
+      data: null,
+    });
+  }
+};
+
+const updateMe = async (req, res) => {
+  try {
+    const updateMeResponse = await authService.updateMe(req.user.id, req.body);
+    return res.status(200).json(updateMeResponse);
   } catch (error) {
     return res.status(error.statusCode || 500).json({
       status: "error",
@@ -80,4 +94,5 @@ module.exports = {
   logout,
   getMe,
   refresh,
+  updateMe,
 };

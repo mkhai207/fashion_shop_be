@@ -138,7 +138,11 @@ const getProductById = (productId) => {
             as: "variants",
             attributes: ["id", "color_id", "size_id", "quantity"],
             include: [
-              { model: Color, as: "color", attributes: ["id", "name"] },
+              {
+                model: Color,
+                as: "color",
+                attributes: ["id", "name", "hex_code"],
+              },
               { model: Size, as: "size", attributes: ["id", "name"] },
             ],
           },

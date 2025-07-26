@@ -16,7 +16,21 @@ const addToCart = async (req, res) => {
 
 const getAllCarts = async (req, res) => {
   try {
-    const getCartsResponse = await cartService.getAllCarts(req.query);
+    const getCartsResponse = await cartService.getAllCarts(req.user, req.query);
+    return res.status(200).json(getCartsResponse);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message,
+      error: error.error,
+      data: null,
+    });
+  }
+};
+
+const getMyCart = async (req, res) => {
+  try {
+    const getCartsResponse = await cartService.getMyCart(req.user);
     return res.status(200).json(getCartsResponse);
   } catch (error) {
     return res.status(error.statusCode || 500).json({
@@ -86,4 +100,5 @@ module.exports = {
   updateCart,
   deleteCartById,
   deleteMultiCartItems,
+  getMyCart,
 };

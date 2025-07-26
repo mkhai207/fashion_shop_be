@@ -109,9 +109,18 @@ const addToCart = (currentUser, cartData) => {
   });
 };
 
-const getAllCarts = (query) => {
+const getAllCarts = (currentUser, query) => {
   return new Promise(async (resolve, reject) => {
     try {
+      if (Number(currentUser.role) !== 1) {
+        return reject({
+          statusCode: 403,
+          message: "Forbidden",
+          error: "You do not have permission to get all cart",
+          data: null,
+        });
+      }
+
       const result = await buildQuery(Cart, query, {
         attributes: [
           "id",
@@ -163,6 +172,60 @@ const getAllCarts = (query) => {
       reject({
         status: "error",
         message: "Get variant fail",
+        error: error.message,
+        data: null,
+      });
+    }
+  });
+};
+
+const getMyCart = (currentUser) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const cart = await Cart.findAll({
+        where: { user_id: currentUser.id },
+        include: [
+          {
+            model: ProductVariant,
+            as: "variant",
+            attributes: ["id", "color_id", "size_id", "quantity"],
+            include: [
+              {
+                model: Product,
+                as: "product",
+                attributes: ["id", "name", "price", "thumbnail"],
+              },
+              {
+                model: Color,
+                as: "color",
+                attributes: ["id", "name", "hex_code"],
+              },
+              { model: Size, as: "size", attributes: ["id", "name"] },
+            ],
+          },
+        ],
+      });
+
+      if (!cart) {
+        return reject({
+          status: "error",
+          message: "Cart not found",
+          error: null,
+          data: null,
+        });
+      }
+
+      return resolve({
+        status: "success",
+        message: "Get product successfully",
+        error: null,
+        data: cart,
+      });
+    } catch (error) {
+      console.log(error);
+      reject({
+        status: "error",
+        message: "Get product fail",
         error: error.message,
         data: null,
       });
@@ -281,7 +344,7 @@ const deleteCartById = (currentUser, cartId) => {
 
       return resolve({
         status: "success",
-        message: "Delete variant successfully",
+        message: "Delete item successfully",
         error: null,
         data: null,
       });
@@ -335,6 +398,7 @@ const deleteMultiCartItems = (currentUser, cartIds) => {
 module.exports = {
   addToCart,
   getAllCarts,
+  getMyCart,
   updateCart,
   deleteCartById,
   deleteMultiCartItems,
