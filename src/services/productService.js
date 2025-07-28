@@ -91,7 +91,7 @@ const getAllProduct = (query) => {
           "category_id",
           "brand_id",
         ],
-        allowedSorts: ["created_at", "price", "sold", "rating"],
+        allowedSorts: ["created_at", "price", "sold", "rating", "name"],
         defaultSort: [["created_at", "DESC"]],
         defaultLimit: 20,
         include: [

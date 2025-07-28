@@ -5,7 +5,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon ./src/server.js",
-    "db:migrate": "sequelize db:migrate"
+    "db:migrate": "sequelize db:migrate",
+    "sync:products": "node ./src/scripts/syncProducts.js",
+    "init:products": "node ./src/scripts/initElasticSearch.js"
   },
   "keywords": [],
   "author": "",

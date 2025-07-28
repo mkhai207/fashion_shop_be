@@ -83,6 +83,164 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+// const searchProducts = async (req, res) => {
+//   try {
+//     const {
+//       q,
+//       gender,
+//       category_id,
+//       brand_id,
+//       min_price,
+//       max_price,
+//       status,
+//       category_name,
+//       brand_name,
+//       min_rating,
+//       max_rating,
+//       autocomplete,
+//       page = 1,
+//       limit = 10,
+//     } = req.query;
+
+//     const pageNum = parseInt(page, 10);
+//     const limitNum = parseInt(limit, 10);
+//     const from = (pageNum - 1) * limitNum;
+
+//     if (autocomplete === "true") {
+//       const query = {
+//         index: "products",
+//         body: {
+//           query: {
+//             multi_match: {
+//               query: q,
+//               fields: [
+//                 "name.autocomplete",
+//                 "category_name.autocomplete",
+//                 "brand_name.autocomplete",
+//               ],
+//               analyzer: "autocomplete_search",
+//             },
+//           },
+//           from,
+//           size: limitNum,
+//         },
+//       };
+
+//       const result = await client.search(query);
+//       const suggestions = result.hits.hits.map((hit) => ({
+//         id: hit._id,
+//         name: hit._source.name,
+//         category_name: hit._source.category_name,
+//         brand_name: hit._source.brand_name,
+//       }));
+
+//       return res.status(200).json({
+//         status: "success",
+//         message: "Autocomplete suggestions retrieved",
+//         data: {
+//           suggestions,
+//           total: result.hits.total.value,
+//           currentPage: pageNum,
+//           totalPages: Math.ceil(result.hits.total.value / limitNum),
+//         },
+//       });
+//     }
+
+//     const filters = [
+//       gender && { term: { gender } },
+//       category_id && { term: { category_id } },
+//       brand_id && { term: { brand_id } },
+//       category_name && { term: { "category_name.keyword": category_name } },
+//       brand_name && { term: { "brand_name.keyword": brand_name } },
+//       min_price && { range: { price: { gte: parseFloat(min_price) } } },
+//       max_price && { range: { price: { lte: parseFloat(max_price) } } },
+//       min_rating && { range: { rating: { gte: parseFloat(min_rating) } } },
+//       max_rating && { range: { rating: { lte: parseFloat(max_rating) } } },
+//       status !== undefined && { term: { status: status === "true" } },
+//     ].filter(Boolean);
+
+//     const query = {
+//       index: "products",
+//       body: {
+//         query: {
+//           bool: {
+//             must: [
+//               q
+//                 ? {
+//                     multi_match: {
+//                       query: q,
+//                       fields: [
+//                         "name^2",
+//                         "description",
+//                         "category_name",
+//                         "brand_name",
+//                       ],
+//                     },
+//                   }
+//                 : { match_all: {} },
+//             ],
+//             filter: filters,
+//           },
+//         },
+//         from,
+//         size: limitNum,
+//         aggs: {
+//           by_gender: { terms: { field: "gender", size: 10 } },
+//           by_category: { terms: { field: "category_name.keyword", size: 10 } },
+//           by_brand: { terms: { field: "brand_name.keyword", size: 10 } },
+//           by_rating: {
+//             histogram: { field: "rating", interval: 1, min_doc_count: 1 },
+//           },
+//         },
+//       },
+//     };
+
+//     const result = await client.search(query);
+//     res.status(200).json({
+//       status: "success",
+//       message: "Search completed",
+//       data: {
+//         products: result.hits.hits.map((hit) => ({
+//           id: hit._id,
+//           ...hit._source,
+//         })),
+//         facets: {
+//           genders: result.aggregations.by_gender.buckets.map((b) => ({
+//             key: b.key,
+//             count: b.doc_count,
+//           })),
+//           categories: result.aggregations.by_category.buckets.map((b) => ({
+//             key: b.key,
+//             count: b.doc_count,
+//           })),
+//           brands: result.aggregations.by_brand.buckets.map((b) => ({
+//             key: b.key,
+//             count: b.doc_count,
+//           })),
+//           ratings: result.aggregations.by_rating.buckets.map((b) => ({
+//             key: b.key,
+//             count: b.doc_count,
+//           })),
+//         },
+//         total: result.hits.total.value,
+//         currentPage: pageNum,
+//         totalPages: Math.ceil(result.hits.total.value / limitNum),
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error in searchProducts:", {
+//       message: error.message,
+//       stack: error.stack,
+//     });
+//     res.status(400).json({
+//       status: "error",
+//       message: "Search failed",
+//       error: error.message,
+//       data: null,
+//     });
+//   }
+// };
+
 const searchProducts = async (req, res) => {
   try {
     const {
@@ -98,6 +256,8 @@ const searchProducts = async (req, res) => {
       min_rating,
       max_rating,
       autocomplete,
+      sort_by,
+      sort_order = "asc",
       page = 1,
       limit = 10,
     } = req.query;
@@ -105,6 +265,26 @@ const searchProducts = async (req, res) => {
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
     const from = (pageNum - 1) * limitNum;
+
+    const buildSortOptions = (sortBy, sortOrder) => {
+      if (!sortBy) return [{ _score: { order: "desc" } }];
+
+      const validSortOrder = ["asc", "desc"].includes(sortOrder.toLowerCase())
+        ? sortOrder.toLowerCase()
+        : "asc";
+
+      const sortOptions = {
+        price: [{ price: { order: validSortOrder } }],
+        rating: [{ rating: { order: validSortOrder } }],
+        name: [{ "name.keyword": { order: validSortOrder } }],
+        sold: [{ sold: { order: validSortOrder } }],
+        created_at: [{ created_at: { order: validSortOrder } }],
+        updated_at: [{ updated_at: { order: validSortOrder } }],
+        relevance: [{ _score: { order: "desc" } }],
+      };
+
+      return sortOptions[sortBy] || [{ _score: { order: "desc" } }];
+    };
 
     if (autocomplete === "true") {
       const query = {
@@ -123,6 +303,7 @@ const searchProducts = async (req, res) => {
           },
           from,
           size: limitNum,
+          sort: buildSortOptions(sort_by, sort_order),
         },
       };
 
@@ -132,6 +313,8 @@ const searchProducts = async (req, res) => {
         name: hit._source.name,
         category_name: hit._source.category_name,
         brand_name: hit._source.brand_name,
+        price: hit._source.price,
+        rating: hit._source.rating,
       }));
 
       return res.status(200).json({
@@ -142,6 +325,8 @@ const searchProducts = async (req, res) => {
           total: result.hits.total.value,
           currentPage: pageNum,
           totalPages: Math.ceil(result.hits.total.value / limitNum),
+          sortBy: sort_by || "relevance",
+          sortOrder: sort_order,
         },
       });
     }
@@ -184,6 +369,7 @@ const searchProducts = async (req, res) => {
         },
         from,
         size: limitNum,
+        sort: buildSortOptions(sort_by, sort_order),
         aggs: {
           by_gender: { terms: { field: "gender", size: 10 } },
           by_category: { terms: { field: "category_name.keyword", size: 10 } },
@@ -191,11 +377,18 @@ const searchProducts = async (req, res) => {
           by_rating: {
             histogram: { field: "rating", interval: 1, min_doc_count: 1 },
           },
+          price_stats: {
+            stats: { field: "price" },
+          },
+          rating_stats: {
+            stats: { field: "rating" },
+          },
         },
       },
     };
 
     const result = await client.search(query);
+
     res.status(200).json({
       status: "success",
       message: "Search completed",
@@ -203,6 +396,7 @@ const searchProducts = async (req, res) => {
         products: result.hits.hits.map((hit) => ({
           id: hit._id,
           ...hit._source,
+          _score: hit._score,
         })),
         facets: {
           genders: result.aggregations.by_gender.buckets.map((b) => ({
@@ -221,16 +415,38 @@ const searchProducts = async (req, res) => {
             key: b.key,
             count: b.doc_count,
           })),
+          priceRange: {
+            min: result.aggregations.price_stats.min,
+            max: result.aggregations.price_stats.max,
+            avg: result.aggregations.price_stats.avg,
+          },
+          ratingRange: {
+            min: result.aggregations.rating_stats.min,
+            max: result.aggregations.rating_stats.max,
+            avg: result.aggregations.rating_stats.avg,
+          },
         },
         total: result.hits.total.value,
         currentPage: pageNum,
         totalPages: Math.ceil(result.hits.total.value / limitNum),
+        sortBy: sort_by || "relevance",
+        sortOrder: sort_order,
+        availableSortOptions: [
+          "relevance",
+          "price",
+          "rating",
+          "name",
+          "sold",
+          "created_at",
+          "updated_at",
+        ],
       },
     });
   } catch (error) {
     console.error("Error in searchProducts:", {
       message: error.message,
       stack: error.stack,
+      query: req.query,
     });
     res.status(400).json({
       status: "error",
