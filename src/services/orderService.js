@@ -258,9 +258,14 @@ const retryPayment = (currentUser, orderId, ipAddr = "127.0.0.1") => {
   });
 };
 
-const getOrders = (query) => {
+const getOrders = (currentUser, query) => {
   return new Promise(async (resolve, reject) => {
     try {
+      const isCustomer = Number(currentUser.role) === 3;
+      if (isCustomer) {
+        query.user_id = currentUser.id;
+      }
+
       const result = await buildQuery(Order, query, {
         attributes: [
           "id",

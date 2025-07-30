@@ -17,7 +17,7 @@ orderRouter.post(
   orderController.retryPaymentHandler
 );
 
-orderRouter.get("/get-orders", orderController.getOrders);
+orderRouter.get("/get-orders", authMiddleware, orderController.getOrders);
 
 orderRouter.get(
   "/get-orders/:id",

@@ -34,7 +34,7 @@ const retryPaymentHandler = async (req, res) => {
 
 const getOrders = async (req, res) => {
   try {
-    const getOrderResponse = await orderService.getOrders(req.query);
+    const getOrderResponse = await orderService.getOrders(req.user, req.query);
     return res.status(200).json(getOrderResponse);
   } catch (error) {
     return res.status(error.statusCode || 500).json({
