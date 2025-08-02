@@ -6,12 +6,66 @@ const Category = db.Category;
 const Color = db.Color;
 const Size = db.Size;
 const ProductVariant = db.ProductVariant;
+const sequelize = db.sequelize;
 const { v4: uuidv4 } = require("uuid");
 const client = require("../../config/elasticSearch");
 
+// const createProduct = (currentUser, productData) => {
+//   return new Promise(async (resolve, reject) => {
+//     try {
+//       if (Number(currentUser.role) !== 1) {
+//         return reject({
+//           statusCode: 403,
+//           message: "Forbidden",
+//           error: "You do not have permission to create new product",
+//           data: null,
+//         });
+//       }
+
+//       const product = await Product.create({
+//         id: uuidv4(),
+//         name: productData.name,
+//         description: productData.description,
+//         price: productData.price,
+//         gender: productData.gender,
+//         sold: productData.sold !== undefined ? productData.sold : 0,
+//         rating: 0,
+//         status: productData.status !== undefined ? productData.status : true,
+//         thumbnail: productData.thumbnail,
+//         slider: productData.slider,
+//         category_id: productData.category_id,
+//         brand_id: productData.brand_id,
+//         created_by: currentUser.id,
+//         updated_by: currentUser.id,
+//         created_at: new Date(),
+//         updated_at: new Date(),
+//       });
+//       await syncSingleProduct(product);
+
+//       return resolve({
+//         status: "success",
+//         message: "Create product successfully",
+//         error: null,
+//         data: product,
+//       });
+//     } catch (error) {
+//       console.log(error);
+//       reject({
+//         status: "error",
+//         message: "Create category fail",
+//         error: error.message,
+//         data: null,
+//       });
+//     }
+//   });
+// };
+
 const createProduct = (currentUser, productData) => {
   return new Promise(async (resolve, reject) => {
+    const transaction = await sequelize.transaction();
+
     try {
+      // Check permissions
       if (Number(currentUser.role) !== 1) {
         return reject({
           statusCode: 403,
@@ -21,37 +75,258 @@ const createProduct = (currentUser, productData) => {
         });
       }
 
-      const product = await Product.create({
-        id: uuidv4(),
-        name: productData.name,
-        description: productData.description,
-        price: productData.price,
-        gender: productData.gender,
-        sold: productData.sold !== undefined ? productData.sold : 0,
-        rating: 0,
-        status: productData.status !== undefined ? productData.status : true,
-        thumbnail: productData.thumbnail,
-        slider: productData.slider,
-        category_id: productData.category_id,
-        brand_id: productData.brand_id,
-        created_by: currentUser.id,
-        updated_by: currentUser.id,
-        created_at: new Date(),
-        updated_at: new Date(),
+      // Validate required fields
+      if (
+        !productData.name ||
+        !productData.price ||
+        !productData.gender ||
+        !productData.category_id ||
+        !productData.brand_id ||
+        !productData.variants ||
+        !Array.isArray(productData.variants) ||
+        productData.variants.length === 0
+      ) {
+        await transaction.rollback();
+        return reject({
+          statusCode: 400,
+          message: "Bad Request",
+          error:
+            "Missing required fields: name, price, gender, category_id, brand_id, variants",
+          data: null,
+        });
+      }
+
+      // Step 1: Create/Get Colors and Sizes
+      const colorMap = new Map();
+      const sizeMap = new Map();
+
+      // Collect all unique colors and sizes from variants
+      const uniqueColors = new Set();
+      const uniqueSizes = new Set();
+
+      productData.variants.forEach((variant) => {
+        uniqueColors.add(variant.hex_code);
+        variant.inventory.forEach((item) => {
+          uniqueSizes.add(item.size);
+        });
       });
-      await syncSingleProduct(product);
+
+      // Process Colors
+      for (const hexCode of uniqueColors) {
+        try {
+          // Try to find existing color by hex_code
+          let color = await Color.findOne({
+            where: { hex_code: hexCode },
+            transaction,
+          });
+
+          if (!color) {
+            // Create new color with a default name based on hex code
+            const colorName =
+              hexCode === "#000000"
+                ? "Black"
+                : hexCode === "#FFFFFF"
+                ? "White"
+                : hexCode === "#FF0000"
+                ? "Red"
+                : hexCode === "#00FF00"
+                ? "Green"
+                : hexCode === "#0000FF"
+                ? "Blue"
+                : `Color ${hexCode}`;
+
+            color = await Color.create(
+              {
+                name: colorName,
+                hex_code: hexCode,
+              },
+              { transaction }
+            );
+          }
+
+          colorMap.set(hexCode, color.id);
+        } catch (error) {
+          console.error(`Error processing color ${hexCode}:`, error);
+          await transaction.rollback();
+          return reject({
+            statusCode: 500,
+            message: "Error processing colors",
+            error: error.message,
+            data: null,
+          });
+        }
+      }
+
+      // Process Sizes
+      for (const sizeName of uniqueSizes) {
+        try {
+          let size = await Size.findOne({
+            where: { name: sizeName },
+            transaction,
+          });
+
+          if (!size) {
+            size = await Size.create(
+              {
+                name: sizeName,
+              },
+              { transaction }
+            );
+          }
+
+          sizeMap.set(sizeName, size.id);
+        } catch (error) {
+          console.error(`Error processing size ${sizeName}:`, error);
+          await transaction.rollback();
+          return reject({
+            statusCode: 500,
+            message: "Error processing sizes",
+            error: error.message,
+            data: null,
+          });
+        }
+      }
+
+      // Step 2: Create Product
+      const productId = uuidv4();
+
+      const product = await Product.create(
+        {
+          id: productId,
+          name: productData.name,
+          description: productData.description || "",
+          price: parseFloat(productData.price),
+          gender: productData.gender,
+          sold: productData.sold ? parseInt(productData.sold) : 0,
+          rating: 0,
+          status: productData.status !== undefined ? productData.status : true,
+          thumbnail: productData.thumbnail || "",
+          slider: productData.slider || "",
+          category_id: parseInt(productData.category_id),
+          brand_id: parseInt(productData.brand_id),
+          created_by: currentUser.id,
+          updated_by: currentUser.id,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        { transaction }
+      );
+
+      // Step 3: Create Product Variants
+      const createdVariants = [];
+
+      for (const variant of productData.variants) {
+        const colorId = colorMap.get(variant.hex_code);
+
+        if (!colorId) {
+          await transaction.rollback();
+          return reject({
+            statusCode: 400,
+            message: "Invalid color data",
+            error: `Color with hex_code ${variant.hex_code} not found`,
+            data: null,
+          });
+        }
+
+        for (const inventoryItem of variant.inventory) {
+          const sizeId = sizeMap.get(inventoryItem.size);
+
+          if (!sizeId) {
+            await transaction.rollback();
+            return reject({
+              statusCode: 400,
+              message: "Invalid size data",
+              error: `Size ${inventoryItem.size} not found`,
+              data: null,
+            });
+          }
+
+          try {
+            const existingVariant = await ProductVariant.findOne({
+              where: {
+                product_id: productId,
+                size_id: sizeId,
+                color_id: colorId,
+              },
+              transaction,
+            });
+
+            if (existingVariant) {
+              console.warn(
+                `Variant already exists for product ${productId}, size ${sizeId}, color ${colorId}`
+              );
+              continue;
+            }
+
+            const productVariant = await ProductVariant.create(
+              {
+                product_id: productId,
+                size_id: sizeId,
+                color_id: colorId,
+                quantity: parseInt(inventoryItem.quantity) || 0,
+                active: true,
+                created_by: currentUser.id,
+                updated_by: currentUser.id,
+                created_at: new Date(),
+                updated_at: new Date(),
+              },
+              { transaction }
+            );
+
+            createdVariants.push(productVariant);
+          } catch (error) {
+            console.error(`Error creating variant:`, error);
+            await transaction.rollback();
+            return reject({
+              statusCode: 500,
+              message: "Error creating product variants",
+              error: error.message,
+              data: null,
+            });
+          }
+        }
+      }
+
+      await transaction.commit();
+
+      try {
+        await syncSingleProduct(product);
+      } catch (syncError) {
+        console.warn("Sync error (non-critical):", syncError);
+      }
+
+      const completeProduct = await Product.findByPk(productId, {
+        include: [
+          {
+            model: ProductVariant,
+            as: "variants",
+            include: [
+              { model: Size, as: "size" },
+              { model: Color, as: "color" },
+            ],
+          },
+          { model: Category, as: "category" },
+          { model: Brand, as: "brand" },
+        ],
+      });
 
       return resolve({
         status: "success",
         message: "Create product successfully",
         error: null,
-        data: product,
+        data: {
+          product: completeProduct,
+          createdVariants: createdVariants.length,
+          createdColors: Array.from(uniqueColors).length,
+          createdSizes: Array.from(uniqueSizes).length,
+        },
       });
     } catch (error) {
-      console.log(error);
-      reject({
+      await transaction.rollback();
+
+      return reject({
         status: "error",
-        message: "Create category fail",
+        message: "Create product failed",
         error: error.message,
         data: null,
       });
