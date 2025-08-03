@@ -103,6 +103,13 @@ const getReviews = (query) => {
         allowedSorts: ["rating", "created_at"],
         defaultSort: [["rating", "DESC"]],
         defaultLimit: 20,
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "full_name", "email", "avatar"],
+          },
+        ],
       });
 
       resolve(result);
