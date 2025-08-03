@@ -104,6 +104,15 @@ const getVariantById = (variantId) => {
         ],
       });
 
+      if (!variant) {
+        return reject({
+          statusCode: 404,
+          message: "variant not found",
+          error: "No variant found with the provided ID",
+          data: null,
+        });
+      }
+
       return resolve({
         status: "success",
         message: "Get variant successfully",
@@ -252,10 +261,57 @@ const deleteVariant = (currentUser, variantId) => {
   });
 };
 
+const getVariantId = (variantData) => {
+  const { product_id, size_id, color_id } = variantData;
+  return new Promise(async (resolve, reject) => {
+    try {
+      const variant = await ProductVariant.findOne({
+        where: {
+          product_id: product_id,
+          size_id: size_id,
+          color_id: color_id,
+          active: true,
+        },
+        attributes: ["id", "quantity", "active"],
+      });
+
+      if (!variant) {
+        return reject({
+          statusCode: 404,
+          message: "Variant not found",
+          error:
+            "No variant found with the provided product, size, and color combination",
+          data: null,
+        });
+      }
+
+      return resolve({
+        status: "success",
+        message: "Get variant ID successfully",
+        error: null,
+        data: {
+          variantId: variant.id,
+          quantity: variant.quantity,
+          active: variant.active,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      reject({
+        status: "error",
+        message: "Get variant ID fail",
+        error: error.message,
+        data: null,
+      });
+    }
+  });
+};
+
 module.exports = {
   createProductVariant,
   getAllVariant,
   updateVariant,
   getVariantById,
   deleteVariant,
+  getVariantId,
 };

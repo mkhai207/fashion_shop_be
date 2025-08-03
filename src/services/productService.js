@@ -7,6 +7,8 @@ const Color = db.Color;
 const Size = db.Size;
 const ProductVariant = db.ProductVariant;
 const sequelize = db.sequelize;
+const Cart = db.Cart;
+const OrderDetail = db.OrderDetail;
 const { v4: uuidv4 } = require("uuid");
 const client = require("../../config/elasticSearch");
 
@@ -474,10 +476,97 @@ const getProductById = (productId) => {
   });
 };
 
+// const updateProduct = (currentUser, productId, productData) => {
+//   return new Promise(async (resolve, reject) => {
+//     try {
+//       if (Number(currentUser.role) !== 1 || Number(currentUser.role) !== 2) {
+//         return reject({
+//           statusCode: 403,
+//           message: "Forbidden",
+//           error: "You do not have permission to update product",
+//           data: null,
+//         });
+//       }
+
+//       const product = await Product.findOne({ where: { id: productId } });
+
+//       if (!product) {
+//         return reject({
+//           statusCode: 404,
+//           message: "Product not found",
+//           error: "No product found with the provided ID",
+//           data: null,
+//         });
+//       }
+
+//       const updateData = {
+//         updated_at: new Date(),
+//         updated_by: currentUser.id,
+//         name: productData.name !== undefined ? productData.name : product.name,
+//         description:
+//           productData.description !== undefined
+//             ? productData.description
+//             : product.description,
+//         price:
+//           productData.price !== undefined ? productData.price : product.price,
+//         gender:
+//           productData.gender !== undefined
+//             ? productData.gender
+//             : product.gender,
+//         sold: productData.sold !== undefined ? productData.sold : product.sold,
+//         rating: product.rating || 0,
+//         status:
+//           productData.status !== undefined
+//             ? productData.status
+//             : product.status,
+//         thumbnail:
+//           productData.thumbnail !== undefined
+//             ? productData.thumbnail
+//             : product.thumbnail,
+//         slider:
+//           productData.slider !== undefined
+//             ? productData.slider
+//             : product.slider,
+//         category_id:
+//           productData.category_id !== undefined
+//             ? productData.category_id
+//             : product.category_id,
+//         brand_id:
+//           productData.brand_id !== undefined
+//             ? productData.brand_id
+//             : product.brand_id,
+//       };
+
+//       const updatedProduct = await product.update(updateData);
+//       await syncSingleProduct(product);
+
+//       const { brand_id, category_id, ...sanitizedProduct } =
+//         updatedProduct.toJSON();
+//       return resolve({
+//         status: "success",
+//         message: "Update product successfully",
+//         error: null,
+//         data: sanitizedProduct,
+//       });
+//     } catch (error) {
+//       console.log(error);
+//       reject({
+//         status: "error",
+//         message: "Update product fail",
+//         error: error.message,
+//         data: null,
+//       });
+//     }
+//   });
+// };
+
 const updateProduct = (currentUser, productId, productData) => {
   return new Promise(async (resolve, reject) => {
+    const transaction = await sequelize.transaction();
+
     try {
-      if (Number(currentUser.role) !== 1 || Number(currentUser.role) !== 2) {
+      // Fix permission check logic
+      if (Number(currentUser.role) !== 1 && Number(currentUser.role) !== 2) {
         return reject({
           statusCode: 403,
           message: "Forbidden",
@@ -486,9 +575,13 @@ const updateProduct = (currentUser, productId, productData) => {
         });
       }
 
-      const product = await Product.findOne({ where: { id: productId } });
+      const product = await Product.findOne({
+        where: { id: productId },
+        transaction,
+      });
 
       if (!product) {
+        await transaction.rollback();
         return reject({
           statusCode: 404,
           message: "Product not found",
@@ -497,6 +590,7 @@ const updateProduct = (currentUser, productId, productData) => {
         });
       }
 
+      //Update basic product information (giữ nguyên logic cũ)
       const updateData = {
         updated_at: new Date(),
         updated_by: currentUser.id,
@@ -535,18 +629,300 @@ const updateProduct = (currentUser, productId, productData) => {
             : product.brand_id,
       };
 
-      const updatedProduct = await product.update(updateData);
-      await syncSingleProduct(product);
+      const updatedProduct = await product.update(updateData, { transaction });
+
+      //Handle variants update (THÊM MỚI)
+      let variantChanges = null; // Initialize variantChanges outside the if block
+
+      if (productData.variants && Array.isArray(productData.variants)) {
+        // Collect unique colors and sizes
+        const uniqueColors = new Set();
+        const uniqueSizes = new Set();
+
+        productData.variants.forEach((variant) => {
+          uniqueColors.add(variant.colorId); // hex_code
+          uniqueSizes.add(variant.sizeId); // size name
+        });
+
+        // Create maps for color and size IDs
+        const colorMap = new Map();
+        const sizeMap = new Map();
+
+        // Process Colors - find or create by hex_code
+        for (const hexCode of uniqueColors) {
+          try {
+            let color = await Color.findOne({
+              where: { hex_code: hexCode },
+              transaction,
+            });
+
+            if (!color) {
+              // Create new color with default name
+              const colorName =
+                hexCode === "#000000"
+                  ? "Black"
+                  : hexCode === "#FFFFFF"
+                  ? "White"
+                  : hexCode === "#FF0000"
+                  ? "Red"
+                  : hexCode === "#00FF00"
+                  ? "Green"
+                  : hexCode === "#0000FF"
+                  ? "Blue"
+                  : hexCode === "#FFFF00"
+                  ? "Yellow"
+                  : hexCode === "#FF00FF"
+                  ? "Magenta"
+                  : hexCode === "#00FFFF"
+                  ? "Cyan"
+                  : `Color ${hexCode}`;
+
+              color = await Color.create(
+                {
+                  name: colorName,
+                  hex_code: hexCode,
+                },
+                { transaction }
+              );
+            }
+
+            colorMap.set(hexCode, color.id);
+          } catch (error) {
+            console.error(`Error processing color ${hexCode}:`, error);
+            await transaction.rollback();
+            return reject({
+              statusCode: 500,
+              message: "Error processing colors",
+              error: error.message,
+              data: null,
+            });
+          }
+        }
+
+        // Process Sizes - find or create by name
+        for (const sizeName of uniqueSizes) {
+          try {
+            let size = await Size.findOne({
+              where: { name: sizeName },
+              transaction,
+            });
+
+            if (!size) {
+              size = await Size.create(
+                {
+                  name: sizeName,
+                },
+                { transaction }
+              );
+            }
+
+            sizeMap.set(sizeName, size.id);
+          } catch (error) {
+            console.error(`Error processing size ${sizeName}:`, error);
+            await transaction.rollback();
+            return reject({
+              statusCode: 500,
+              message: "Error processing sizes",
+              error: error.message,
+              data: null,
+            });
+          }
+        }
+
+        // Get existing variants
+        const existingVariants = await ProductVariant.findAll({
+          where: { product_id: productId },
+          include: [
+            { model: Size, as: "size" },
+            { model: Color, as: "color" },
+          ],
+          transaction,
+        });
+
+        // Create maps for comparison
+        const existingVariantsMap = new Map();
+        existingVariants.forEach((variant) => {
+          const key = `${variant.color.hex_code}_${variant.size.name}`;
+          existingVariantsMap.set(key, variant);
+        });
+
+        const newVariantsMap = new Map();
+        productData.variants.forEach((variant) => {
+          // Use hex_code and size name for consistency
+          const key = `${variant.colorId}_${variant.sizeId}`;
+          newVariantsMap.set(key, variant);
+        });
+
+        // Track changes
+        const toUpdate = [];
+        const toCreate = [];
+        const toDelete = [];
+
+        // Find variants to update or create
+        for (const [key, newVariant] of newVariantsMap) {
+          if (existingVariantsMap.has(key)) {
+            // Variant exists - check if needs update
+            const existingVariant = existingVariantsMap.get(key);
+            if (existingVariant.quantity !== parseInt(newVariant.stock)) {
+              toUpdate.push({
+                existing: existingVariant,
+                newData: newVariant,
+              });
+            }
+          } else {
+            // New variant - need to create
+            toCreate.push(newVariant);
+          }
+        }
+
+        // Find variants to delete
+        for (const [key, existingVariant] of existingVariantsMap) {
+          if (!newVariantsMap.has(key)) {
+            toDelete.push(existingVariant);
+          }
+        }
+
+        // Execute updates
+        for (const updateItem of toUpdate) {
+          try {
+            await updateItem.existing.update(
+              {
+                quantity: parseInt(updateItem.newData.stock) || 0,
+                updated_by: currentUser.id,
+                updated_at: new Date(),
+              },
+              { transaction }
+            );
+          } catch (error) {
+            console.error(`Error updating variant:`, error);
+            await transaction.rollback();
+            return reject({
+              statusCode: 500,
+              message: "Error updating product variants",
+              error: error.message,
+              data: null,
+            });
+          }
+        }
+
+        // Execute creates
+        for (const newVariant of toCreate) {
+          const colorId = colorMap.get(newVariant.colorId);
+          const sizeId = sizeMap.get(newVariant.sizeId);
+
+          if (!colorId || !sizeId) {
+            await transaction.rollback();
+            return reject({
+              statusCode: 400,
+              message: "Invalid variant data",
+              error: `Color ${newVariant.colorId} or Size ${newVariant.sizeId} not found`,
+              data: null,
+            });
+          }
+
+          try {
+            await ProductVariant.create(
+              {
+                product_id: productId,
+                size_id: sizeId,
+                color_id: colorId,
+                quantity: parseInt(newVariant.stock) || 0,
+                active: true,
+                created_by: currentUser.id,
+                updated_by: currentUser.id,
+                created_at: new Date(),
+                updated_at: new Date(),
+              },
+              { transaction }
+            );
+          } catch (error) {
+            console.error(`Error creating variant:`, error);
+            await transaction.rollback();
+            return reject({
+              statusCode: 500,
+              message: "Error creating product variants",
+              error: error.message,
+              data: null,
+            });
+          }
+        }
+
+        let actuallyDeleted = 0;
+        let actuallyDeactivated = 0;
+
+        for (const variantToDelete of toDelete) {
+          try {
+            const cartCount = await Cart.count({
+              where: { product_variant_id: variantToDelete.id },
+              transaction,
+            });
+
+            const orderCount = await OrderDetail.count({
+              where: { product_variant_id: variantToDelete.id },
+              transaction,
+            });
+
+            if (cartCount > 0 || orderCount > 0) {
+              // Cannot delete - variant is being used
+              // Option 1: Set active = false (soft delete)
+              await variantToDelete.update(
+                {
+                  active: false,
+                  quantity: 0,
+                  updated_by: currentUser.id,
+                  updated_at: new Date(),
+                },
+                { transaction }
+              );
+              actuallyDeactivated++;
+            } else {
+              await variantToDelete.destroy({ transaction });
+              actuallyDeleted++;
+            }
+          } catch (error) {
+            console.error(`Error deleting variant:`, error);
+            await transaction.rollback();
+            return reject({
+              statusCode: 500,
+              message: "Error deleting product variants",
+              error: error.message,
+              data: null,
+            });
+          }
+        }
+
+        variantChanges = {
+          updated: toUpdate.length,
+          created: toCreate.length,
+          deleted: actuallyDeleted,
+          deactivated: actuallyDeactivated,
+        };
+      }
+
+      await transaction.commit();
+
+      try {
+        await syncSingleProduct(updatedProduct);
+      } catch (syncError) {
+        console.warn("Sync error (non-critical):", syncError);
+      }
 
       const { brand_id, category_id, ...sanitizedProduct } =
         updatedProduct.toJSON();
+
+      const responseData = { ...sanitizedProduct };
+      if (productData.variants && variantChanges) {
+        responseData.variantChanges = variantChanges;
+      }
+
       return resolve({
         status: "success",
         message: "Update product successfully",
         error: null,
-        data: sanitizedProduct,
+        data: responseData,
       });
     } catch (error) {
+      await transaction.rollback();
       console.log(error);
       reject({
         status: "error",

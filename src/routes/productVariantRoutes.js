@@ -34,4 +34,10 @@ productVariantRouter.delete(
   productVariantController.deleteVariant
 );
 
+productVariantRouter.post(
+  "/get-variantid",
+  authMiddleware,
+  productVariantController.getVariantId
+);
+
 module.exports = productVariantRouter;

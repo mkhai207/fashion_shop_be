@@ -47,6 +47,22 @@ const getVariantById = async (req, res) => {
   }
 };
 
+const getVariantId = async (req, res) => {
+  try {
+    const getVariantResponse = await productVariantService.getVariantId(
+      req.body
+    );
+    return res.status(200).json(getVariantResponse);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message,
+      error: error.error,
+      data: null,
+    });
+  }
+};
+
 const updateVariant = async (req, res) => {
   try {
     const updateVariantResponse = await productVariantService.updateVariant(
@@ -88,4 +104,5 @@ module.exports = {
   updateVariant,
   getVariantById,
   deleteVariant,
+  getVariantId,
 };
