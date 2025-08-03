@@ -3,48 +3,64 @@ const buildQuery = require("../utils/queryBuilder");
 const Review = db.Review;
 const Sequelize = db.sequelize;
 const Product = db.Product;
+const User = db.User;
+const Order = db.Order;
+const OrderDetail = db.OrderDetail;
 
 const createReview = (currentUser, reviewData) => {
   return new Promise(async (resolve, reject) => {
     try {
-      if (Number(currentUser.role) !== 3) {
-        return reject({
-          statusCode: 403,
-          message: "Forbidden",
-          error: "You do not have permission to create new review",
-          data: null,
+      // Split product IDs
+      const productIds = reviewData.product_id
+        .split(",")
+        .map((id) => id.trim())
+        .filter((id) => id);
+      const reviews = [];
+      const updatedProducts = new Set();
+
+      // Create reviews for all products
+      for (const productId of productIds) {
+        const review = await Review.create({
+          user_id: currentUser.id,
+          product_id: productId,
+          order_id: reviewData.order_id,
+          rating: reviewData.rating,
+          comment: reviewData.comment || null,
+          images: reviewData.images || null,
+          created_by: currentUser.id,
+          updated_by: currentUser.id,
         });
+
+        reviews.push(review);
+        updatedProducts.add(productId);
       }
 
-      const review = await Review.create({
-        user_id: currentUser.id,
-        product_id: reviewData.product_id,
-        rating: reviewData.rating,
-        comment: reviewData.comment || null,
-        images: reviewData.images || null,
-        created_by: currentUser.id,
-        updated_by: currentUser.id,
-      });
+      // Update average rating for all products
+      for (const productId of updatedProducts) {
+        const allReviews = await Review.findAll({
+          where: { product_id: productId },
+          attributes: ["rating"],
+        });
 
-      const allReviews = await Review.findAll({
-        where: { product_id: reviewData.product_id },
-        attributes: ["rating"],
-      });
+        const averageRating =
+          allReviews.reduce((acc, cur) => acc + cur.rating, 0) /
+          allReviews.length;
 
-      const averageRating =
-        allReviews.reduce((acc, cur) => acc + cur.rating, 0) /
-        allReviews.length;
-
-      await Product.update(
-        { rating: averageRating },
-        { where: { id: reviewData.product_id } }
-      );
+        await Product.update(
+          { rating: averageRating },
+          { where: { id: productId } }
+        );
+      }
 
       return resolve({
         status: "success",
-        message: "Create review successfully",
+        message: `Create ${reviews.length} review(s) successfully`,
         error: null,
-        data: review,
+        data: {
+          total_reviews: reviews.length,
+          reviews: reviews,
+          products_reviewed: Array.from(updatedProducts),
+        },
       });
     } catch (error) {
       console.log(error);
@@ -73,6 +89,7 @@ const getReviews = (query) => {
           "images",
           "user_id",
           "product_id",
+          "order_id",
         ],
         allowedFilters: [
           "id",
@@ -81,6 +98,7 @@ const getReviews = (query) => {
           "images",
           "user_id",
           "product_id",
+          "order_id",
         ],
         allowedSorts: ["rating", "created_at"],
         defaultSort: [["rating", "DESC"]],
@@ -136,7 +154,6 @@ const getAverageRating = (productId) => {
     }
   });
 };
-//   return new Promise(async (resolve, reject) => {
 //     try {
 //       if (Number(currentUser.role) !== 1) {
 //         return reject({
@@ -215,6 +232,89 @@ const getAverageRating = (productId) => {
 //   });
 // };
 
+const getReviewByProductId = (productId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const reviews = await Review.findAll({
+        where: { product_id: productId },
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "full_name", "email", "avatar"],
+          },
+        ],
+      });
+
+      return resolve({
+        status: "success",
+        message: "Get products in order successfully",
+        error: null,
+        data: reviews,
+      });
+    } catch (error) {
+      console.log(error);
+      reject({
+        status: "error",
+        message: "Get products in order fail",
+        error: error.message,
+        data: null,
+      });
+    }
+  });
+};
+
+const getReviewByOrderId = (orderId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const review = await Review.findOne({
+        where: { order_id: orderId },
+        include: [
+          {
+            model: db.User,
+            as: "user",
+            attributes: ["id", "full_name", "email"],
+          },
+          {
+            model: db.Product,
+            as: "product",
+            attributes: ["id", "name", "thumbnail"],
+          },
+          {
+            model: db.Order,
+            as: "order",
+            attributes: ["id", "name", "status"],
+          },
+        ],
+      });
+
+      if (!review) {
+        return reject({
+          statusCode: 404,
+          message: "Review not found",
+          error: "No review found for this order",
+          data: null,
+        });
+      }
+
+      return resolve({
+        status: "success",
+        message: "Get review by order ID successfully",
+        error: null,
+        data: review,
+      });
+    } catch (error) {
+      console.log(error);
+      reject({
+        status: "error",
+        message: "Get review by order ID fail",
+        error: error.message,
+        data: null,
+      });
+    }
+  });
+};
+
 const deleteReview = (currentUser, reviewId) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -253,5 +353,7 @@ module.exports = {
   createReview,
   getReviews,
   getAverageRating,
+  getReviewByProductId,
+  getReviewByOrderId,
   deleteReview,
 };

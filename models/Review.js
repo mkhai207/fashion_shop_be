@@ -43,6 +43,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(255),
         references: { model: "Products", key: "id" },
       },
+      order_id: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        references: { model: "Orders", key: "id" },
+      },
     },
     {
       tableName: "reviews",
@@ -55,6 +60,10 @@ module.exports = (sequelize, DataTypes) => {
     Review.belongsTo(models.Product, {
       foreignKey: "product_id",
       as: "product",
+    });
+    Review.belongsTo(models.Order, {
+      foreignKey: "order_id",
+      as: "order",
     });
   };
 

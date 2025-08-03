@@ -47,6 +47,22 @@ const getAverageRating = async (req, res) => {
   }
 };
 
+const getReviewByProductId = async (req, res) => {
+  try {
+    const getReviewsResponse = await reviewService.getReviewByProductId(
+      req.params.productId
+    );
+    return res.status(200).json(getReviewsResponse);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message,
+      error: error.error,
+      data: null,
+    });
+  }
+};
+
 const deleteReview = async (req, res) => {
   try {
     const deleteReviewResponse = await reviewService.deleteReview(
@@ -68,5 +84,6 @@ module.exports = {
   createReview,
   getReviews,
   getAverageRating,
+  getReviewByProductId,
   deleteReview,
 };

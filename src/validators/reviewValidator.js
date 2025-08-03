@@ -8,25 +8,44 @@ const createReviewValidator = validate(
     product_id: {
       in: ["body"],
       notEmpty: { errorMessage: "Product ID is required" },
-      isString: { errorMessage: "Product ID must a string" },
+      isString: { errorMessage: "Product ID must be a string" },
       custom: {
         options: async (value) => {
-          const product = await Product.findByPk(value);
-          if (!product) {
-            throw new Error("Product not found");
+          // Split product IDs by comma
+          const productIds = value
+            .split(",")
+            .map((id) => id.trim())
+            .filter((id) => id);
+
+          if (productIds.length === 0) {
+            throw new Error("At least one product ID is required");
           }
+
+          // Check if all products exist
+          for (const productId of productIds) {
+            const product = await Product.findByPk(productId);
+            if (!product) {
+              throw new Error(`Product with ID ${productId} not found`);
+            }
+          }
+
           return true;
         },
       },
     },
     order_id: {
       in: ["body"],
+      notEmpty: { errorMessage: "Order ID is required" },
       isInt: { errorMessage: "Order ID must be an integer" },
       custom: {
         options: async (value, { req }) => {
-          if (!value) return true;
+          // Check if order exists and belongs to current user
           const order = await Order.findOne({
-            where: { id: value, user_id: req.user.id },
+            where: {
+              id: value,
+              user_id: req.user.id,
+              status: "COMPLETED",
+            },
             include: [
               {
                 model: OrderDetail,
@@ -35,15 +54,52 @@ const createReviewValidator = validate(
                   {
                     model: ProductVariant,
                     as: "variant",
-                    where: { product_id: req.body.product_id },
                   },
                 ],
               },
             ],
           });
-          if (!order || order.orderDetails.length === 0) {
-            throw new Error("Order not found or product not purchased");
+
+          if (!order) {
+            throw new Error(
+              "Order not found or you don't have permission to review this order"
+            );
           }
+
+          // Split product IDs and check if all products exist in this order
+          const productIds = req.body.product_id
+            .split(",")
+            .map((id) => id.trim())
+            .filter((id) => id);
+          const orderProductIds = order.orderDetails.map(
+            (detail) => detail.variant.product_id
+          );
+
+          for (const productId of productIds) {
+            if (!orderProductIds.includes(productId)) {
+              throw new Error(
+                `Product with ID ${productId} not found in this order`
+              );
+            }
+          }
+
+          // Check if reviews already exist for any of these products in this order
+          for (const productId of productIds) {
+            const existingReview = await Review.findOne({
+              where: {
+                order_id: value,
+                product_id: productId,
+                user_id: req.user.id,
+              },
+            });
+
+            if (existingReview) {
+              throw new Error(
+                `Review already exists for product ${productId} in this order`
+              );
+            }
+          }
+
           return true;
         },
       },
@@ -72,17 +128,6 @@ const createReviewValidator = validate(
       isLength: {
         options: { max: 1000 },
         errorMessage: "Images field must be less than 1000 characters",
-      },
-    },
-    custom: {
-      options: async (value, { req }) => {
-        const existingReview = await Review.findOne({
-          where: { user_id: req.user.id, product_id: req.body.product_id },
-        });
-        if (existingReview) {
-          throw new Error("You have already reviewed this product");
-        }
-        return true;
       },
     },
   })
@@ -144,6 +189,25 @@ const getAverageRatingValidator = validate(
   })
 );
 
+const getReviewByOrderIdValidator = validate(
+  checkSchema({
+    orderId: {
+      in: ["params"],
+      notEmpty: { errorMessage: "Order ID is required" },
+      isInt: { errorMessage: "Order ID must be an integer" },
+      custom: {
+        options: async (value) => {
+          const order = await Order.findByPk(value);
+          if (!order) {
+            throw new Error("Order not found");
+          }
+          return true;
+        },
+      },
+    },
+  })
+);
+
 const deleteReviewValidator = validate(
   checkSchema({
     id: {
@@ -167,5 +231,6 @@ module.exports = {
   createReviewValidator,
   getReviewsValidator,
   getAverageRatingValidator,
+  getReviewByOrderIdValidator,
   deleteReviewValidator,
 };

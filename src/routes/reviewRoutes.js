@@ -19,6 +19,11 @@ reviewRouter.get(
   reviewController.getAverageRating
 );
 
+reviewRouter.get(
+  "/get-reviews/:productId",
+  reviewController.getReviewByProductId
+);
+
 reviewRouter.delete(
   "/delete-review/:id",
   authMiddleware,

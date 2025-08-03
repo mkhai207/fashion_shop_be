@@ -190,6 +190,61 @@ const updateDiscount = (currentUser, discountId, discountData) => {
   });
 };
 
+// const checkDiscount = (discountCode, totalOrder) => {
+//   return new Promise(async (resolve, reject) => {
+//     try {
+//       const discount = await Discount.findOne({
+//         where: { code: discountCode },
+//       });
+
+//       if (!discount) {
+//         reject({
+//           status: "error",
+//           message: "Discount not found",
+//           error: "Discount not exist",
+//           data: null,
+//         });
+//       }
+
+//       if (
+//         discount.valid_from > Date.now() ||
+//         discount.valid_until < Date.now()
+//       ) {
+//         reject({
+//           status: "error",
+//           message: "Discount code invalid",
+//           error: "This coupon code has expired or cannot be used yet",
+//           data: null,
+//         });
+//       }
+
+//       if (discount.minimum_order_value > totalOrder) {
+//         reject({
+//           status: "error",
+//           message: "Discount code invalid",
+//           error: "Your order does not have enough value to use the code",
+//           data: null,
+//         });
+//       }
+
+//       return resolve({
+//         status: "success",
+//         message: "Get discount successfully",
+//         error: null,
+//         data: discount,
+//       });
+//     } catch (error) {
+//       console.log(error);
+//       reject({
+//         status: "error",
+//         message: "Get discount fail",
+//         error: error.message,
+//         data: null,
+//       });
+//     }
+//   });
+// };
+
 const deleteDiscount = (currentUser, discountId) => {
   return new Promise(async (resolve, reject) => {
     try {
