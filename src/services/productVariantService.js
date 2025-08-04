@@ -78,6 +78,10 @@ const getAllVariant = (query) => {
         allowedSorts: ["created_at", "updated_at", "quantity"],
         defaultSort: [["created_at", "DESC"]],
         defaultLimit: 20,
+        include: [
+          { model: Color, as: "color", attributes: ["id", "name", "hex_code"] },
+          { model: Size, as: "size", attributes: ["id", "name"] },
+        ],
       });
 
       resolve(result);

@@ -521,6 +521,7 @@ const getOrders = (currentUser, query) => {
           "phone",
           "status",
           "user_id",
+          "name",
         ],
         allowedSorts: ["created_at", "name"],
         defaultSort: [["created_at", "DESC"]],
