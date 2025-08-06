@@ -19,6 +19,8 @@ const createBrand = (currentUser, brandData) => {
         name: brandData.name,
         created_by: currentUser?.id || null,
         created_at: new Date(),
+        updated_at: new Date(),
+        updated_by: currentUser?.id || null,
       });
 
       return resolve({
@@ -118,7 +120,7 @@ const updateBrand = (currentUser, brandId, brandData) => {
 
       const updateData = {
         name: brandData.name !== undefined ? brandData.name : brand.name,
-        updated_by: currentUser.id,
+        updated_by: currentUser?.id || null,
         updated_at: new Date(),
       };
 
